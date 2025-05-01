@@ -80,7 +80,7 @@ export function loadDocument(id) {
 }
 
 // Render document content in the editor
-export function renderDocument(document) {
+export function renderDocument(docData) {
     // Get editor element
     const editor = document.getElementById('editor');
     if (!editor) return;
@@ -91,7 +91,7 @@ export function renderDocument(document) {
     // Set document title
     const titleElement = document.getElementById('document-title');
     if (titleElement) {
-        titleElement.textContent = document.title;
+        titleElement.textContent = docData.title;
         
         // Add event listener for title changes
         titleElement.addEventListener('input', () => {
@@ -102,8 +102,8 @@ export function renderDocument(document) {
     }
     
     // If document has content, render it
-    if (document.content && document.content.length > 0) {
-        document.content.forEach(block => {
+    if (docData.content && docData.content.length > 0) {
+        docData.content.forEach(block => {
             const blockElement = createBlockElement(block.type, block.content);
             editor.appendChild(blockElement);
             

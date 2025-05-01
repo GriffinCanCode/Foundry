@@ -43,14 +43,36 @@ export async function initializeSettingsStorage(options = {}) {
  */
 export async function loadSettings(options = {}) {
   try {
-    const settings = await loadData(STORE_TYPE, SETTINGS_ID, options);
-    return settings;
-  } catch (error) {
-    // If settings don't exist yet, create default settings
+    // Try to load existing settings
+    try {
+      const settings = await loadData(STORE_TYPE, SETTINGS_ID, options);
+      if (settings) {
+        // Ensure ID is set
+        if (!settings.id) {
+          settings.id = SETTINGS_ID;
+        }
+        return settings;
+      }
+    } catch (error) {
+      console.log('No existing settings found, creating defaults', error.message);
+    }
+    
+    // If settings don't exist yet or load failed, create default settings
     console.log('Creating default settings');
-    const defaultSettings = { ...DEFAULT_SETTINGS };
-    await saveSettings(defaultSettings, options);
-    return defaultSettings;
+    const defaultSettings = { ...DEFAULT_SETTINGS, id: SETTINGS_ID };
+    
+    try {
+      await saveSettings(defaultSettings, options);
+      return defaultSettings;
+    } catch (saveError) {
+      console.error('Failed to save default settings:', saveError);
+      // Still return default settings even if save failed
+      return defaultSettings;
+    }
+  } catch (error) {
+    console.error('Error in loadSettings:', error);
+    // Return default settings as fallback
+    return { ...DEFAULT_SETTINGS, id: SETTINGS_ID };
   }
 }
 
@@ -65,7 +87,7 @@ export async function saveSettings(settings, options = {}) {
   // Ensure ID is set
   const settingsToSave = {
     ...settings,
-    id: SETTINGS_ID,
+    id: settings.id || SETTINGS_ID,
     lastUpdated: new Date().toISOString()
   };
   

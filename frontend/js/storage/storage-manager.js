@@ -510,7 +510,14 @@ async function loadFromBackend(storeType, id) {
         return result.success ? result.database : null;
       case 'settings':
         result = await window.foundryAPI.loadSettings();
-        return result.success ? result.settings : null;
+        // Ensure settings object has an ID
+        if (result.success && result.settings) {
+          if (!result.settings.id) {
+            result.settings.id = 'app-settings';
+          }
+          return result.settings;
+        }
+        return null;
       default:
         throw new Error(`Unsupported store type: ${storeType}`);
     }
@@ -595,14 +602,24 @@ async function saveToLocalStorage(storeType, data) {
   try {
     const db = await openDatabase();
     
+    // Ensure data has an ID
+    if (!data.id) {
+      // Generate an ID if one doesn't exist
+      data = { 
+        ...data, 
+        id: `${storeType}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+      };
+      console.warn(`Added missing ID to ${storeType} object:`, data.id);
+    }
+    
     return new Promise((resolve, reject) => {
       const transaction = db.transaction([storeType], 'readwrite');
       const store = transaction.objectStore(storeType);
       
       const request = store.put(data);
       
-      request.onerror = () => {
-        const error = new Error(`Failed to save ${storeType} to local storage`);
+      request.onerror = (event) => {
+        const error = new Error(`Failed to save ${storeType} to local storage: ${event.target.error.message}`);
         error.source = 'local';
         reject(error);
       };

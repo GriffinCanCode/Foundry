@@ -85,23 +85,42 @@ export async function listWorkspaces(options = {}) {
 export async function getCurrentWorkspace(options = {}) {
   try {
     // First check if there's a persisted current workspace
-    const settings = await loadData('settings', 'app-settings', options);
+    let currentWorkspaceId = null;
     
-    if (settings && settings.currentWorkspaceId) {
+    try {
+      // Try to load settings
+      const settings = await loadData('settings', 'app-settings', options);
+      
+      if (settings && settings.currentWorkspaceId) {
+        currentWorkspaceId = settings.currentWorkspaceId;
+      }
+    } catch (error) {
+      console.warn('Could not load settings, will use default workspace:', error.message);
+    }
+    
+    // If we have a workspace ID, try to load that workspace
+    if (currentWorkspaceId) {
       try {
-        return await loadWorkspace(settings.currentWorkspaceId, options);
+        const workspace = await loadWorkspace(currentWorkspaceId, options);
+        if (workspace) return workspace;
       } catch (error) {
-        console.warn('Current workspace not found:', error);
+        console.warn(`Current workspace ${currentWorkspaceId} not found:`, error.message);
       }
     }
     
     // If no current workspace or not found, return first available or create default
-    const workspaces = await listWorkspaces(options);
+    try {
+      const workspaces = await listWorkspaces(options);
+      
+      if (workspaces && workspaces.length > 0) {
+        return workspaces[0];
+      }
+    } catch (error) {
+      console.warn('Could not list workspaces:', error.message);
+    }
     
-    if (workspaces.length > 0) {
-      return workspaces[0];
-    } else {
-      // Create default workspace if none exist
+    // Create default workspace if none exist
+    try {
       const defaultWorkspace = {
         id: 'default',
         name: 'Default Workspace',
@@ -112,6 +131,9 @@ export async function getCurrentWorkspace(options = {}) {
       
       await saveWorkspace(defaultWorkspace, options);
       return defaultWorkspace;
+    } catch (error) {
+      console.error('Error creating default workspace:', error);
+      return null;
     }
   } catch (error) {
     console.error('Error getting current workspace:', error);
