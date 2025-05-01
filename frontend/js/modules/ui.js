@@ -200,33 +200,92 @@ export function showSidebar() {
 
 // Render the document list in the sidebar
 export function renderDocumentList() {
+    console.log('%c[UI] renderDocumentList called', 'background: #6b21a8; color: white; padding: 2px 4px; border-radius: 4px;');
+    
     const pagesList = document.getElementById('pages-list');
-    if (!pagesList) return;
+    
+    // Check if we're on a page where the sidebar exists
+    // If we're on workspace.html or another page without the sidebar, this is expected
+    const isSidebarExpected = window.location.pathname.endsWith('index.html') || 
+                             window.location.pathname === '/' || 
+                             window.location.pathname.endsWith('/');
+    
+    console.log('[UI] Current path:', window.location.pathname, 'Sidebar expected:', isSidebarExpected);
+    
+    if (!pagesList) {
+        // Only log as error when we expect the sidebar to exist
+        if (isSidebarExpected) {
+            console.warn('Pages list element not found in sidebar');
+        }
+        return;
+    }
     
     // Clear existing list
     pagesList.innerHTML = '';
     
-    // Add each document to the list
-    if (appState.documentList.length === 0) {
+    // Check for documents to display
+    if (!appState.documentList || appState.documentList.length === 0) {
+        console.log('[UI] No documents in appState.documentList');
         pagesList.innerHTML = '<div class="py-2 px-3 text-surface-500 text-sm">No pages yet</div>';
         return;
     }
     
-    appState.documentList.forEach(doc => {
+    // Filter documents by current workspace
+    let documentsToDisplay = appState.documentList;
+    
+    if (appState.currentWorkspace) {
+        console.log('[UI] Filtering documents for workspace:', appState.currentWorkspace.id);
+        documentsToDisplay = appState.documentList.filter(doc => 
+            doc.workspaceId === appState.currentWorkspace.id || !doc.workspaceId
+        );
+        console.log('[UI] Found', documentsToDisplay.length, 'documents in current workspace');
+    } else {
+        console.warn('[UI] No current workspace, showing all documents');
+    }
+    
+    if (documentsToDisplay.length === 0) {
+        console.log('[UI] No documents found for current workspace');
+        pagesList.innerHTML = '<div class="py-2 px-3 text-surface-500 text-sm">No pages in this workspace</div>';
+        return;
+    }
+    
+    console.log('[UI] Rendering document list with', documentsToDisplay.length, 'documents');
+    console.log('[UI] Current document:', appState.currentDocument ? appState.currentDocument.id : 'none');
+    
+    // Sort documents by lastAccessed date, with most recent first
+    const sortedDocuments = [...documentsToDisplay].sort((a, b) => {
+        // If lastAccessed is missing, use updated or created dates as fallbacks
+        const timeA = a.lastAccessed || a.updated || a.created || '';
+        const timeB = b.lastAccessed || b.updated || b.created || '';
+        return timeB.localeCompare(timeA); // Most recent first
+    });
+    
+    // Debug: Show all document titles in the list after sorting
+    sortedDocuments.forEach((doc, index) => {
+        console.log(`[UI] Document ${index}: id=${doc.id}, title="${doc.title}", lastAccessed=${doc.lastAccessed || 'n/a'}`);
+    });
+    
+    // Render the sorted documents
+    sortedDocuments.forEach(doc => {
         const li = document.createElement('li');
+        
+        // Check if this is the active document
+        const isActive = appState.currentDocument && appState.currentDocument.id === doc.id;
+        
+        // Create the list item with active highlight if needed
         li.innerHTML = `
-            <div class="flex items-center justify-between p-2 rounded-md hover:bg-surface-100">
+            <div class="flex items-center justify-between p-2 rounded-md ${isActive ? 'bg-primary-50 text-primary-700' : 'hover:bg-surface-100'}">
                 <a href="#" class="flex items-center flex-grow" data-doc-id="${doc.id}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" 
                          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
-                         class="w-4 h-4 mr-2 text-surface-500">
+                         class="w-4 h-4 mr-2 ${isActive ? 'text-primary-500' : 'text-surface-500'}">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                         <polyline points="14 2 14 8 20 8"></polyline>
                         <line x1="16" y1="13" x2="8" y2="13"></line>
                         <line x1="16" y1="17" x2="8" y2="17"></line>
                         <polyline points="10 9 9 9 8 9"></polyline>
                     </svg>
-                    <span>${doc.title || 'Untitled'}</span>
+                    <span class="truncate max-w-[120px]">${doc.title || 'Untitled'}</span>
                 </a>
                 <button class="delete-doc-btn text-surface-400 hover:text-red-500 p-1" data-doc-id="${doc.id}">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" 
@@ -242,25 +301,63 @@ export function renderDocumentList() {
         // Add click handler to load document
         const loadDocFn = (e) => {
             e.preventDefault();
+            const docId = e.currentTarget.getAttribute('data-doc-id');
+            console.log('[UI] Loading document:', docId);
+            
+            // Import the document module
             import('./document.js').then(module => {
-                module.loadDocument(doc.id);
+                // First check if there's a current document and it's different from the one we're loading
+                if (appState.currentDocument && appState.currentDocument.id !== docId) {
+                    console.log('[UI] Saving current document before switching:', appState.currentDocument.id);
+                    
+                    // Get the current editor content before switching
+                    import('./page-editor.js').then(editorModule => {
+                        // Ensure current document has the most up-to-date content
+                        if (appState.currentDocument) {
+                            const content = editorModule.getEditorContent();
+                            if (content && Array.isArray(content)) {
+                                appState.currentDocument.content = content;
+                            }
+                        }
+                        
+                        // Now save the current document with updated content
+                        module.saveCurrentDocument(true).then(() => {
+                            // After saving, load the new document
+                            module.loadDocument(docId);
+                        }).catch(err => {
+                            console.error('[UI] Error saving current document:', err);
+                            // Still try to load new document even if save fails
+                            module.loadDocument(docId);
+                        });
+                    });
+                } else {
+                    // If no current document or same document, just load
+                    module.loadDocument(docId);
+                }
             });
         };
         
-        li.querySelector('a').addEventListener('click', loadDocFn);
-        
-        // Add delete handler
+        // Get delete button and add event listener
+        const deleteBtn = li.querySelector('.delete-doc-btn');
         const deleteFn = (e) => {
+            e.preventDefault();
             e.stopPropagation();
+            const docId = e.currentTarget.getAttribute('data-doc-id');
             import('./document.js').then(module => {
-                module.deleteDocument(doc.id);
+                module.deleteDocument(docId);
             });
         };
         
-        li.querySelector('.delete-doc-btn').addEventListener('click', deleteFn);
+        // Add event listeners
+        li.querySelector('a').addEventListener('click', loadDocFn);
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', deleteFn);
+        }
         
         pagesList.appendChild(li);
     });
+    
+    console.log('[UI] Document list rendering complete');
 }
 
 // Render the workplaces list in the sidebar

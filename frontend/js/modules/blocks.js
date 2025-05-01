@@ -18,6 +18,8 @@ let eventDelegationInitialized = false; // Track if we've set up delegation
 
 // Function to create a new block element with enhanced styling and optimized DOM operations
 export function createBlockElement(type, content = "") {
+  console.log(`[BLOCKS] Creating ${type} block with content: "${content?.substring(0, 30)}${content?.length > 30 ? '...' : ''}"`);
+  
   // Create base block container with all needed attributes in one operation
   const blockId = `block-${blockIdCounter++}`;
   const blockContainer = FastDOM.createElement("div", {
@@ -83,9 +85,13 @@ export function createBlockElement(type, content = "") {
         className:
           "editable-block heading-block font-display font-semibold text-2xl",
         contentEditable: true,
-        dataset: { placeholder: "Heading" },
-        textContent: content,
+        dataset: { placeholder: "Heading" }
       });
+      
+      // Explicitly set the content after element creation
+      blockElement.textContent = content || "";
+      
+      console.log(`[BLOCKS] Created heading block with content: "${content?.substring(0, 30)}${content?.length > 30 ? '...' : ''}", element content: "${blockElement.textContent}"`);
       break;
 
     case "todo":
@@ -108,9 +114,13 @@ export function createBlockElement(type, content = "") {
       const textSpan = FastDOM.createElement("span", {
         className: "editable-block todo-text",
         contentEditable: true,
-        dataset: { placeholder: "To-do item" },
-        textContent: content,
+        dataset: { placeholder: "To-do item" }
       });
+      
+      // Explicitly set the content after element creation
+      textSpan.textContent = content || "";
+      
+      console.log(`[BLOCKS] Created todo block with content: "${content?.substring(0, 30)}${content?.length > 30 ? '...' : ''}", element content: "${textSpan.textContent}"`);
 
       // Use DocumentFragment for adding multiple children efficiently
       const todoFragment = document.createDocumentFragment();
@@ -184,9 +194,13 @@ export function createBlockElement(type, content = "") {
         className:
           "editable-block quote-block pl-4 border-l-4 border-primary-300 italic text-surface-700",
         contentEditable: true,
-        dataset: { placeholder: "Quote" },
-        textContent: content,
+        dataset: { placeholder: "Quote" }
       });
+      
+      // Explicitly set the content after element creation
+      blockElement.textContent = content || "";
+      
+      console.log(`[BLOCKS] Created quote block with content: "${content?.substring(0, 30)}${content?.length > 30 ? '...' : ''}", element content: "${blockElement.textContent}"`);
       break;
 
     case "code":
@@ -199,9 +213,13 @@ export function createBlockElement(type, content = "") {
       const codeElement = FastDOM.createElement("code", {
         className: "editable-block code-block text-sm font-mono",
         contentEditable: true,
-        dataset: { placeholder: "Code" },
-        textContent: content,
+        dataset: { placeholder: "Code" }
       });
+      
+      // Explicitly set the content after element creation
+      codeElement.textContent = content || "";
+      
+      console.log(`[BLOCKS] Created code block with content: "${content?.substring(0, 30)}${content?.length > 30 ? '...' : ''}", element content: "${codeElement.textContent}"`);
 
       const languageSelector = FastDOM.createElement("select", {
         className:
@@ -294,9 +312,13 @@ export function createBlockElement(type, content = "") {
       blockElement = FastDOM.createElement("p", {
         className: "editable-block text-block text-surface-800 leading-relaxed",
         contentEditable: true,
-        dataset: { placeholder: "Type / for commands or start typing..." },
-        textContent: content,
+        dataset: { placeholder: "Type / for commands or start typing..." }
       });
+      
+      // Explicitly set the content after element creation
+      blockElement.textContent = content || "";
+      
+      console.log(`[BLOCKS] Created text block with content: "${content?.substring(0, 30)}${content?.length > 30 ? '...' : ''}", length: ${content?.length}, element content: "${blockElement.textContent}"`);
 
       // Add support for markdown-style formatting
       blockElement.addEventListener("keydown", handleMarkdownShortcuts);

@@ -105,6 +105,14 @@
   line-height: 1.2;
   position: relative;
   text-shadow: 0 1px 1px rgba(255, 255, 255, 0.5);
+  display: block;
+  min-height: 3rem;
+}
+
+.document-title[placeholder]:empty:before {
+  content: attr(placeholder);
+  color: var(--surface-400);
+  cursor: text;
 }
 
 .document-title::after {

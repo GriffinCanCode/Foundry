@@ -43,6 +43,7 @@ export async function initializeSettingsStorage(options = {}) {
  */
 export async function loadSettings(options = {}) {
   try {
+    console.log('Loading application settings');
     // Try to load existing settings
     try {
       const settings = await loadData(STORE_TYPE, SETTINGS_ID, options);
@@ -51,7 +52,12 @@ export async function loadSettings(options = {}) {
         if (!settings.id) {
           settings.id = SETTINGS_ID;
         }
-        return settings;
+        
+        // Fill in any missing default values
+        const completeSettings = { ...DEFAULT_SETTINGS, ...settings };
+        
+        console.log('Settings loaded successfully');
+        return completeSettings;
       }
     } catch (error) {
       console.log(
@@ -87,14 +93,29 @@ export async function loadSettings(options = {}) {
  * @returns {Promise<Object>} - Result with success status
  */
 export async function saveSettings(settings, options = {}) {
-  // Ensure ID is set
-  const settingsToSave = {
-    ...settings,
-    id: settings.id || SETTINGS_ID,
-    lastUpdated: new Date().toISOString(),
-  };
-
-  return await saveData(STORE_TYPE, settingsToSave, options);
+  try {
+    // Create a clean copy of settings to avoid reference issues
+    const cleanSettings = { ...settings };
+    
+    // Ensure ID is set
+    cleanSettings.id = cleanSettings.id || SETTINGS_ID;
+    cleanSettings.lastUpdated = new Date().toISOString();
+    
+    // Remove any null or undefined values
+    Object.keys(cleanSettings).forEach(key => {
+      if (cleanSettings[key] === undefined || cleanSettings[key] === null) {
+        delete cleanSettings[key];
+      }
+    });
+    
+    console.log('Saving application settings');
+    const result = await saveData(STORE_TYPE, cleanSettings, options);
+    console.log('Settings saved successfully');
+    return result;
+  } catch (error) {
+    console.error('Error saving settings:', error);
+    throw error;
+  }
 }
 
 /**
@@ -105,17 +126,31 @@ export async function saveSettings(settings, options = {}) {
  * @returns {Promise<Object>} - The updated settings
  */
 export async function updateSettings(updates, options = {}) {
-  const currentSettings = await loadSettings(options);
+  try {
+    const currentSettings = await loadSettings(options);
+    
+    // Validate updates to ensure they're proper settings values
+    const validatedUpdates = { ...updates };
+    for (const key in validatedUpdates) {
+      // Skip undefined or null values
+      if (validatedUpdates[key] === undefined || validatedUpdates[key] === null) {
+        delete validatedUpdates[key];
+      }
+    }
 
-  // Apply updates to current settings
-  const updatedSettings = {
-    ...currentSettings,
-    ...updates,
-    lastUpdated: new Date().toISOString(),
-  };
+    // Apply updates to current settings
+    const updatedSettings = {
+      ...currentSettings,
+      ...validatedUpdates,
+      lastUpdated: new Date().toISOString(),
+    };
 
-  await saveSettings(updatedSettings, options);
-  return updatedSettings;
+    await saveSettings(updatedSettings, options);
+    return updatedSettings;
+  } catch (error) {
+    console.error('Error updating settings:', error);
+    throw error;
+  }
 }
 
 /**
@@ -127,8 +162,13 @@ export async function updateSettings(updates, options = {}) {
  * @returns {Promise<*>} - The setting value
  */
 export async function getSetting(key, defaultValue = null, options = {}) {
-  const settings = await loadSettings(options);
-  return settings[key] !== undefined ? settings[key] : defaultValue;
+  try {
+    const settings = await loadSettings(options);
+    return settings[key] !== undefined ? settings[key] : defaultValue;
+  } catch (error) {
+    console.error(`Error getting setting "${key}":`, error);
+    return defaultValue;
+  }
 }
 
 /**
@@ -140,8 +180,17 @@ export async function getSetting(key, defaultValue = null, options = {}) {
  * @returns {Promise<Object>} - The updated settings
  */
 export async function setSetting(key, value, options = {}) {
-  const updates = { [key]: value };
-  return await updateSettings(updates, options);
+  try {
+    if (key === undefined || key === null || key === '') {
+      throw new Error('Invalid setting key');
+    }
+    
+    const updates = { [key]: value };
+    return await updateSettings(updates, options);
+  } catch (error) {
+    console.error(`Error setting "${key}" setting:`, error);
+    throw error;
+  }
 }
 
 /**
@@ -152,23 +201,31 @@ export async function setSetting(key, value, options = {}) {
  * @returns {Promise<Object>} - The updated settings
  */
 export async function resetSettings(keysToReset = null, options = {}) {
-  let currentSettings = await loadSettings(options);
+  try {
+    let currentSettings = await loadSettings(options);
 
-  if (keysToReset && Array.isArray(keysToReset)) {
-    // Reset only specified keys
-    keysToReset.forEach((key) => {
-      if (key in DEFAULT_SETTINGS) {
-        currentSettings[key] = DEFAULT_SETTINGS[key];
-      }
-    });
-  } else {
-    // Reset all settings but preserve ID
-    currentSettings = { ...DEFAULT_SETTINGS };
+    if (keysToReset && Array.isArray(keysToReset)) {
+      console.log(`Resetting specific settings: ${keysToReset.join(', ')}`);
+      // Reset only specified keys
+      keysToReset.forEach((key) => {
+        if (key in DEFAULT_SETTINGS) {
+          currentSettings[key] = DEFAULT_SETTINGS[key];
+        }
+      });
+    } else {
+      console.log('Resetting all settings to defaults');
+      // Reset all settings but preserve ID
+      const id = currentSettings.id;
+      currentSettings = { ...DEFAULT_SETTINGS, id };
+    }
+
+    currentSettings.lastUpdated = new Date().toISOString();
+    await saveSettings(currentSettings, options);
+    return currentSettings;
+  } catch (error) {
+    console.error('Error resetting settings:', error);
+    throw error;
   }
-
-  currentSettings.lastUpdated = new Date().toISOString();
-  await saveSettings(currentSettings, options);
-  return currentSettings;
 }
 
 /**
@@ -177,5 +234,81 @@ export async function resetSettings(keysToReset = null, options = {}) {
  * @returns {Promise<Object>} - Sync result
  */
 export async function syncSettings() {
-  return await syncWithBackend();
+  try {
+    const result = await syncWithBackend();
+    console.log('Settings synchronized with backend');
+    return result;
+  } catch (error) {
+    console.error('Error synchronizing settings:', error);
+    throw error;
+  }
+}
+
+/**
+ * Repair settings if corrupted
+ * 
+ * @returns {Promise<Object>} - Repair results
+ */
+export async function repairSettings() {
+  try {
+    console.log('Starting settings repair process');
+    
+    let settings;
+    let needsRepair = false;
+    let repairs = [];
+    
+    // Try to load current settings
+    try {
+      settings = await loadData(STORE_TYPE, SETTINGS_ID);
+    } catch (error) {
+      console.warn('Failed to load settings, creating new defaults');
+      settings = { ...DEFAULT_SETTINGS };
+      needsRepair = true;
+      repairs.push('created new settings file');
+    }
+    
+    // Ensure ID is correct
+    if (!settings.id || settings.id !== SETTINGS_ID) {
+      settings.id = SETTINGS_ID;
+      needsRepair = true;
+      repairs.push('fixed settings ID');
+    }
+    
+    // Ensure all default values exist
+    for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
+      if (settings[key] === undefined) {
+        settings[key] = value;
+        needsRepair = true;
+        repairs.push(`added missing ${key} setting`);
+      }
+    }
+    
+    // Fix timestamps
+    if (!settings.lastUpdated) {
+      settings.lastUpdated = new Date().toISOString();
+      needsRepair = true;
+      repairs.push('fixed missing timestamp');
+    }
+    
+    // Save repaired settings if needed
+    if (needsRepair) {
+      await saveData(STORE_TYPE, settings, { silent: true });
+      console.log(`Settings repaired: ${repairs.join(', ')}`);
+    } else {
+      console.log('Settings are valid, no repair needed');
+    }
+    
+    return {
+      repaired: needsRepair,
+      repairs: repairs,
+      settings: settings
+    };
+  } catch (error) {
+    console.error('Error repairing settings:', error);
+    return {
+      repaired: false,
+      error: error.message,
+      settings: { ...DEFAULT_SETTINGS, id: SETTINGS_ID }
+    };
+  }
 }

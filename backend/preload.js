@@ -39,10 +39,17 @@ contextBridge.exposeInMainWorld(
     deleteBlock: (blockId) => ipcRenderer.invoke('delete-block', blockId),
     
     // Database operations
-    createDatabase: (dbConfig) => ipcRenderer.invoke('create-database', dbConfig),
-    updateDatabase: (dbId, dbConfig) => ipcRenderer.invoke('update-database', dbId, dbConfig),
+    saveDatabase: (dbConfig) => ipcRenderer.invoke('save-database', dbConfig),
+    loadDatabase: (dbId) => ipcRenderer.invoke('load-database', dbId),
+    listDatabases: (workspaceId) => ipcRenderer.invoke('list-databases', workspaceId),
+    deleteDatabase: (dbId) => ipcRenderer.invoke('delete-database', dbId),
+    createDatabase: (dbConfig) => ipcRenderer.invoke('save-database', dbConfig), // Alias for saveDatabase
+    updateDatabase: (dbId, dbConfig) => {
+      // Combine ID with data for update
+      const fullData = { ...dbConfig, id: dbId };
+      return ipcRenderer.invoke('save-database', fullData);
+    },
     queryDatabase: (dbId, query) => ipcRenderer.invoke('query-database', dbId, query),
-    listDatabases: () => ipcRenderer.invoke('list-databases'),
     
     // Device and System Information
     getSystemInfo: () => ipcRenderer.invoke('get-system-info'),

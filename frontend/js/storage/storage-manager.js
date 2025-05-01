@@ -642,13 +642,13 @@ async function listFromBackend(storeType) {
     switch (storeType) {
       case "documents":
         result = await window.foundryAPI.listDocuments();
-        return result.success ? result.documents : [];
+        return result && result.success && Array.isArray(result.documents) ? result.documents : [];
       case "workspaces":
         result = await window.foundryAPI.listWorkspaces();
-        return result.success ? result.workspaces : [];
+        return result && result.success && Array.isArray(result.workspaces) ? result.workspaces : [];
       case "databases":
         result = await window.foundryAPI.listDatabases();
-        return result.success ? result.databases : [];
+        return result && result.success && Array.isArray(result.databases) ? result.databases : [];
       default:
         throw new Error(
           `Unsupported list operation for store type: ${storeType}`

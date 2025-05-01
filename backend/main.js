@@ -420,13 +420,13 @@ function setupIpcHandlers() {
     return { success: true };
   });
 
-  // Database operations (simplified)
-  ipcMain.handle('create-database', async (event, dbConfig) => {
+  // Database operations
+  ipcMain.handle('save-database', async (event, dbData) => {
     try {
-      const dbId = dbConfig.id || Date.now().toString();
+      const dbId = dbData.id || Date.now().toString();
       
       // Ensure required metadata is present
-      const workspaceId = dbConfig.workspaceId || (activeWorkspace ? activeWorkspace.id : 'default');
+      const workspaceId = dbData.workspaceId || (activeWorkspace ? activeWorkspace.id : 'default');
       
       // Use workspace-specific directory if available
       let targetDir = dbDir;
@@ -441,240 +441,212 @@ function setupIpcHandlers() {
         }
       }
       
-      const filePath = path.join(targetDir, `${dbId}.json`);
-      
-      const dbToSave = {
-        ...dbConfig,
-        id: dbId,
-        workspaceId: workspaceId,
-        updatedAt: new Date().toISOString(),
-        createdAt: dbConfig.createdAt || new Date().toISOString(),
-        entries: dbConfig.entries || []
-      };
-      
-      // Ensure each entry has proper metadata
-      if (Array.isArray(dbToSave.entries)) {
-        dbToSave.entries = dbToSave.entries.map((entry, index) => {
-          return {
-            ...entry,
-            id: entry.id || `entry_${Date.now()}_${index}`,
-            workspaceId: workspaceId,
-            dbId: dbId,
-            updatedAt: new Date().toISOString(),
-            createdAt: entry.createdAt || new Date().toISOString()
-          };
-        });
+      // Make sure the database directory exists
+      if (!fs.existsSync(targetDir)) {
+        await fs.promises.mkdir(targetDir, { recursive: true });
       }
       
-      await fs.promises.writeFile(filePath, JSON.stringify(dbToSave, null, 2));
-      return { success: true, id: dbId, database: dbToSave };
+      // Set the properties
+      const database = {
+        ...dbData,
+        id: dbId,
+        workspaceId: workspaceId,
+        updated: new Date().toISOString()
+      };
+      
+      // Make sure created date exists
+      if (!database.created) {
+        database.created = database.updated;
+      }
+      
+      // Validate the database tables
+      if (!Array.isArray(database.tables)) {
+        database.tables = [];
+      }
+      
+      // Apply workspace ID to tables
+      database.tables = database.tables.map(table => ({
+        ...table,
+        workspaceId: workspaceId,
+        updatedAt: new Date().toISOString()
+      }));
+      
+      // Save the database file
+      const dbFilePath = path.join(targetDir, `${dbId}.json`);
+      await fs.promises.writeFile(dbFilePath, JSON.stringify(database, null, 2));
+      
+      return { success: true, id: dbId };
     } catch (error) {
-      console.error('Error creating database:', error);
+      console.error('Error saving database:', error);
       return { success: false, error: error.message };
     }
   });
-
-  ipcMain.handle('update-database', async (event, dbId, dbConfig) => {
+  
+  ipcMain.handle('load-database', async (event, id) => {
     try {
-      // Try to update in workspace-specific directory if available
-      let filePath = null;
-      let existingDb = null;
-      let workspaceId = dbConfig.workspaceId || (activeWorkspace ? activeWorkspace.id : 'default');
+      // Try to find the database in workspace folders first
+      let dbFile = null;
+      let dbData = null;
       
-      // First try to find the database in the specified workspace
-      if (workspaceId !== 'default') {
-        const wsDbDir = path.join(workspacesDir, workspaceId, 'databases');
-        filePath = path.join(wsDbDir, `${dbId}.json`);
-        
-        if (fs.existsSync(filePath)) {
-          const data = await fs.promises.readFile(filePath, 'utf8');
-          existingDb = JSON.parse(data);
+      // Check in current workspace first if there is one
+      if (activeWorkspace) {
+        const wsDbFile = path.join(workspacesDir, activeWorkspace.id, 'databases', `${id}.json`);
+        if (fs.existsSync(wsDbFile)) {
+          dbFile = wsDbFile;
         }
       }
       
-      // If not found in workspace, try active workspace
-      if (!existingDb && activeWorkspace && activeWorkspace.id !== workspaceId) {
-        const wsDbDir = path.join(workspacesDir, activeWorkspace.id, 'databases');
-        filePath = path.join(wsDbDir, `${dbId}.json`);
-        
-        if (fs.existsSync(filePath)) {
-          const data = await fs.promises.readFile(filePath, 'utf8');
-          existingDb = JSON.parse(data);
-          workspaceId = activeWorkspace.id;
+      // If not found, check in the default location
+      if (!dbFile) {
+        const defaultDbFile = path.join(dbDir, `${id}.json`);
+        if (fs.existsSync(defaultDbFile)) {
+          dbFile = defaultDbFile;
         }
       }
       
-      // If not found, try the global db directory
-      if (!existingDb) {
-        filePath = path.join(dbDir, `${dbId}.json`);
-        if (fs.existsSync(filePath)) {
-          const data = await fs.promises.readFile(filePath, 'utf8');
-          existingDb = JSON.parse(data);
-          workspaceId = 'default';
+      // If still not found, look in all workspace folders
+      if (!dbFile) {
+        const workspaces = fs.readdirSync(workspacesDir);
+        for (const ws of workspaces) {
+          const wsDbFile = path.join(workspacesDir, ws, 'databases', `${id}.json`);
+          if (fs.existsSync(wsDbFile)) {
+            dbFile = wsDbFile;
+            break;
+          }
         }
       }
       
-      if (!existingDb) {
+      if (!dbFile) {
         return { success: false, error: 'Database not found' };
       }
       
-      // Update with new config
-      const updatedDb = {
-        ...existingDb,
-        ...dbConfig,
-        id: dbId,
-        workspaceId: workspaceId,
-        updatedAt: new Date().toISOString()
-      };
+      // Read and parse the database file
+      const dbContent = await fs.promises.readFile(dbFile, 'utf8');
+      dbData = JSON.parse(dbContent);
       
-      // Ensure each entry has proper metadata
-      if (Array.isArray(updatedDb.entries)) {
-        updatedDb.entries = updatedDb.entries.map((entry, index) => {
-          return {
-            ...entry,
-            id: entry.id || `entry_${Date.now()}_${index}`,
-            workspaceId: workspaceId,
-            dbId: dbId,
-            updatedAt: new Date().toISOString(),
-            createdAt: entry.createdAt || new Date().toISOString()
-          };
-        });
+      // Ensure the database has a workspace ID
+      if (!dbData.workspaceId && activeWorkspace) {
+        dbData.workspaceId = activeWorkspace.id;
       }
       
-      await fs.promises.writeFile(filePath, JSON.stringify(updatedDb, null, 2));
-      return { success: true, database: updatedDb };
+      return { success: true, data: dbData };
     } catch (error) {
-      console.error('Error updating database:', error);
+      console.error('Error loading database:', error);
       return { success: false, error: error.message };
     }
   });
-
-  ipcMain.handle("list-databases", async () => {
+  
+  ipcMain.handle('delete-database', async (event, id) => {
+    try {
+      // Try to find the database file in workspaces first
+      let dbFile = null;
+      
+      // Check in current workspace first if there is one
+      if (activeWorkspace) {
+        const wsDbFile = path.join(workspacesDir, activeWorkspace.id, 'databases', `${id}.json`);
+        if (fs.existsSync(wsDbFile)) {
+          dbFile = wsDbFile;
+        }
+      }
+      
+      // If not found, check in the default location
+      if (!dbFile) {
+        const defaultDbFile = path.join(dbDir, `${id}.json`);
+        if (fs.existsSync(defaultDbFile)) {
+          dbFile = defaultDbFile;
+        }
+      }
+      
+      // If still not found, look in all workspace folders
+      if (!dbFile) {
+        const workspaces = fs.readdirSync(workspacesDir);
+        for (const ws of workspaces) {
+          const wsDbFile = path.join(workspacesDir, ws, 'databases', `${id}.json`);
+          if (fs.existsSync(wsDbFile)) {
+            dbFile = wsDbFile;
+            break;
+          }
+        }
+      }
+      
+      if (!dbFile) {
+        return { success: false, error: 'Database not found' };
+      }
+      
+      // Delete the database file
+      await fs.promises.unlink(dbFile);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting database:', error);
+      return { success: false, error: error.message };
+    }
+  });
+  
+  ipcMain.handle('list-databases', async (event, workspaceId) => {
     try {
       const databases = [];
-
-      // List databases from workspace-specific directory if available
-      if (activeWorkspace) {
-        const wsDbDir = path.join(
-          workspacesDir,
-          activeWorkspace.id,
-          "databases"
-        );
-
+      
+      // Get all databases from the specified workspace or all workspaces
+      if (workspaceId) {
+        const wsDbDir = path.join(workspacesDir, workspaceId, 'databases');
         if (fs.existsSync(wsDbDir)) {
-          const files = await fs.promises.readdir(wsDbDir);
-
+          const files = fs.readdirSync(wsDbDir);
           for (const file of files) {
-            if (file.endsWith(".json")) {
+            if (file.endsWith('.json')) {
               try {
-                const data = await fs.promises.readFile(
-                  path.join(wsDbDir, file),
-                  "utf8"
-                );
-                const db = JSON.parse(data);
-                databases.push({
-                  id: db.id,
-                  name: db.name,
-                  updatedAt: db.updatedAt,
-                  createdAt: db.createdAt,
-                });
-              } catch (err) {
-                console.error(`Error reading database ${file}:`, err);
+                const content = await fs.promises.readFile(path.join(wsDbDir, file), 'utf8');
+                const data = JSON.parse(content);
+                databases.push(data);
+              } catch (readError) {
+                console.error(`Error reading database file ${file}:`, readError);
+              }
+            }
+          }
+        }
+      } else {
+        // Get databases from all workspaces and the default location
+        const workspaces = fs.existsSync(workspacesDir) ? fs.readdirSync(workspacesDir) : [];
+        
+        // Check default database directory
+        if (fs.existsSync(dbDir)) {
+          const files = fs.readdirSync(dbDir);
+          for (const file of files) {
+            if (file.endsWith('.json')) {
+              try {
+                const content = await fs.promises.readFile(path.join(dbDir, file), 'utf8');
+                const data = JSON.parse(content);
+                databases.push(data);
+              } catch (readError) {
+                console.error(`Error reading database file ${file}:`, readError);
+              }
+            }
+          }
+        }
+        
+        // Check each workspace
+        for (const ws of workspaces) {
+          const wsDbDir = path.join(workspacesDir, ws, 'databases');
+          if (fs.existsSync(wsDbDir)) {
+            const files = fs.readdirSync(wsDbDir);
+            for (const file of files) {
+              if (file.endsWith('.json')) {
+                try {
+                  const content = await fs.promises.readFile(path.join(wsDbDir, file), 'utf8');
+                  const data = JSON.parse(content);
+                  databases.push(data);
+                } catch (readError) {
+                  console.error(`Error reading database file ${file}:`, readError);
+                }
               }
             }
           }
         }
       }
-
-      // If no workspace is active or no databases found, try the global db directory
-      if (databases.length === 0) {
-        const files = await fs.promises.readdir(dbDir);
-
-        for (const file of files) {
-          if (file.endsWith(".json")) {
-            try {
-              const data = await fs.promises.readFile(
-                path.join(dbDir, file),
-                "utf8"
-              );
-              const db = JSON.parse(data);
-              databases.push({
-                id: db.id,
-                name: db.name,
-                updatedAt: db.updatedAt,
-                createdAt: db.createdAt,
-              });
-            } catch (err) {
-              console.error(`Error reading database ${file}:`, err);
-            }
-          }
-        }
-      }
-
-      return { success: true, databases };
+      
+      return { success: true, data: databases };
     } catch (error) {
-      console.error("Error listing databases:", error);
-      return { success: false, error: error.message };
-    }
-  });
-
-  ipcMain.handle("query-database", async (event, dbId, query) => {
-    try {
-      // Try to query in workspace-specific directory if available
-      let filePath = null;
-      let db = null;
-
-      if (activeWorkspace) {
-        const wsDbDir = path.join(
-          workspacesDir,
-          activeWorkspace.id,
-          "databases"
-        );
-        filePath = path.join(wsDbDir, `${dbId}.json`);
-
-        if (fs.existsSync(filePath)) {
-          const data = await fs.promises.readFile(filePath, "utf8");
-          db = JSON.parse(data);
-        }
-      }
-
-      // If not found, try the global db directory
-      if (!db) {
-        filePath = path.join(dbDir, `${dbId}.json`);
-        const data = await fs.promises.readFile(filePath, "utf8");
-        db = JSON.parse(data);
-      }
-
-      // Very simple query implementation
-      // In a real app, this would be much more sophisticated
-      let results = [...db.entries];
-
-      // Apply filters if present
-      if (query.filters) {
-        for (const [key, value] of Object.entries(query.filters)) {
-          results = results.filter((entry) => entry[key] === value);
-        }
-      }
-
-      // Apply sort if present
-      if (query.sort) {
-        const { field, direction } = query.sort;
-        results.sort((a, b) => {
-          if (direction === "asc") {
-            return a[field] > b[field] ? 1 : -1;
-          } else {
-            return a[field] < b[field] ? 1 : -1;
-          }
-        });
-      }
-
-      return {
-        success: true,
-        results,
-        total: results.length,
-      };
-    } catch (error) {
-      console.error("Error querying database:", error);
+      console.error('Error listing databases:', error);
       return { success: false, error: error.message };
     }
   });

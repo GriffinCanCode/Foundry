@@ -7,6 +7,22 @@ import { renderDatabaseList } from "./ui.js";
 import { showNotification } from "../utils/notifications.js";
 import { closeModal } from "../utils/modals.js";
 import { memoize, Cache } from "../utils/optimizer.js";
+import {
+  initializeDatabaseStorage,
+  saveDatabase,
+  loadDatabase as loadDatabaseFromStorage,
+  deleteDatabase as deleteDatabaseFromStorage,
+  listDatabases as listDatabasesFromStorage,
+  repairDatabaseData
+} from "../storage/database-storage.js";
+
+// Initialize database storage when module is imported
+initializeDatabaseStorage().catch((error) => {
+  console.error("Failed to initialize database storage:", error);
+});
+
+// Re-export the repair function so it can be used by app-core.js
+export { repairDatabaseData };
 
 // Sample table data to simulate database functionality
 const sampleTableData = {
@@ -162,28 +178,44 @@ export function createNewDatabase() {
         name: name,
         type: type,
         created: new Date().toISOString(),
-        lastUpdated: new Date().toISOString(),
-        columns: getDefaultColumns(type),
-        rows: [],
+        updated: new Date().toISOString(),
+        workspaceId: appState.currentWorkspace?.id,
+        tables: [
+          {
+            id: "table_" + Date.now(),
+            name: "Default Table",
+            columns: getDefaultColumns(type),
+            rows: []
+          }
+        ]
       };
 
-      // Store database in local storage
-      const databases = JSON.parse(localStorage.getItem("databases") || "{}");
-      databases[databaseId] = database;
-      localStorage.setItem("databases", JSON.stringify(databases));
+      // Save database using storage module
+      saveDatabase(database)
+        .then(result => {
+          // Clear cache for this database
+          databaseCache.delete(databaseId);
 
-      // Clear cache for this database
-      databaseCache.delete(databaseId);
+          // Add to app state
+          if (!appState.databaseList.some(db => db.id === database.id)) {
+            appState.databaseList.push(database);
+            renderDatabaseList();
+          }
 
-      showNotification(`Database "${name}" created successfully`, "success");
+          showNotification(`Database "${name}" created successfully`, "success");
 
-      // Close modal
-      closeModal(modal);
+          // Close modal
+          closeModal(modal);
 
-      // Add database block to editor
-      if (typeof window.addDatabaseBlock === "function") {
-        window.addDatabaseBlock(name);
-      }
+          // Add database block to editor
+          if (typeof window.addDatabaseBlock === "function") {
+            window.addDatabaseBlock(name, databaseId);
+          }
+        })
+        .catch(error => {
+          console.error("Error saving database:", error);
+          showNotification("Failed to create database", "error");
+        });
     });
 }
 
@@ -248,39 +280,24 @@ function showDatabaseInterface(database) {
   // Add event listeners
   document.getElementById("close-db-view-btn").addEventListener("click", () => {
     // Restore editor content
-    try {
-      const backup = JSON.parse(
-        localStorage.getItem("foundry_editor_backup") || "{}"
-      );
+    const backup = JSON.parse(
+      localStorage.getItem("foundry_editor_backup") || "{}"
+    );
+    mainContent.innerHTML = `
+      <div class="py-4 px-6 border-b border-surface-200">
+        <h1 id="document-title" class="text-2xl font-display font-semibold outline-none" contenteditable>${
+          backup.documentTitle || ""
+        }</h1>
+      </div>
+      <div id="editor" class="p-6 focus:outline-none">${
+        backup.editorContent || ""
+      }</div>
+    `;
 
-      if (backup.editorContent) {
-        mainContent.innerHTML = `
-                    <div class="document-header py-4 px-6">
-                        <h1 id="document-title" class="text-2xl font-display font-semibold outline-none" contenteditable="true">${
-                          backup.documentTitle || "Untitled"
-                        }</h1>
-                    </div>
-                    <div id="editor" class="editor px-6 py-4 focus:outline-none">
-                        ${backup.editorContent}
-                    </div>
-                `;
-      }
-    } catch (err) {
-      console.error("Error restoring editor state:", err);
-
-      // Fallback to empty editor
-      mainContent.innerHTML = `
-                <div class="document-header py-4 px-6">
-                    <h1 id="document-title" class="text-2xl font-display font-semibold outline-none" contenteditable="true">Untitled</h1>
-                </div>
-                <div id="editor" class="editor px-6 py-4 focus:outline-none"></div>
-            `;
-
-      // Create a default block
-      import("./blocks.js").then((module) => {
-        module.addBlock("text", "");
-      });
-    }
+    // Reinitialize editor
+    import("./page-editor.js").then((module) => {
+      module.initializePageEditor(document.getElementById("editor"));
+    });
   });
 
   document.getElementById("add-record-btn").addEventListener("click", () => {
@@ -288,496 +305,294 @@ function showDatabaseInterface(database) {
   });
 }
 
-// Get table headers for the database view
+// Get table headers
 function getTableHeaders(database) {
-  const tableType = database.type;
+  // For now, use sample data based on database type
+  const table = database.type === "table" ? "tasks" : "people";
+  const data = getSampleData(database, table);
 
-  if (tableType === "tasks") {
-    return `
-            <th class="px-4 py-3 text-left font-medium">Task</th>
-            <th class="px-4 py-3 text-left font-medium">Status</th>
-            <th class="px-4 py-3 text-left font-medium">Due Date</th>
-            <th class="px-4 py-3 text-left font-medium">Actions</th>
-        `;
-  } else if (tableType === "people") {
-    return `
-            <th class="px-4 py-3 text-left font-medium">Name</th>
-            <th class="px-4 py-3 text-left font-medium">Role</th>
-            <th class="px-4 py-3 text-left font-medium">Email</th>
-            <th class="px-4 py-3 text-left font-medium">Actions</th>
-        `;
-  } else if (tableType === "notes") {
-    return `
-            <th class="px-4 py-3 text-left font-medium">Title</th>
-            <th class="px-4 py-3 text-left font-medium">Content</th>
-            <th class="px-4 py-3 text-left font-medium">Date</th>
-            <th class="px-4 py-3 text-left font-medium">Actions</th>
-        `;
-  } else if (tableType === "custom" && database.schema) {
-    // Custom table with schema
-    let headers = "";
-    database.schema.forEach((field) => {
-      headers += `<th class="px-4 py-3 text-left font-medium">${field.name}</th>`;
-    });
-    return headers + `<th class="px-4 py-3 text-left font-medium">Actions</th>`;
-  }
+  // Get column data from first row or use keys
+  const columns = data.length > 0 ? Object.keys(data[0]) : ["id", "name"];
 
-  // Default empty header
-  return '<th class="px-4 py-3 text-left font-medium">No data available</th>';
+  // Generate header HTML
+  return columns
+    .map((col) => {
+      const colName = col
+        .split("_")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
+      return `<th class="px-4 py-3 text-left">${colName}</th>`;
+    })
+    .join("");
 }
 
-// Get table rows for the database view
+// Get table rows
 function getTableRows(database) {
-  const tableType = database.type;
-  const tableData = database.tables[tableType] || [];
+  // For now, use sample data based on database type
+  const table = database.type === "table" ? "tasks" : "people";
+  const data = getSampleData(database, table);
 
-  if (tableData.length === 0) {
-    return `
-            <tr>
-                <td colspan="4" class="px-4 py-8 text-center text-surface-500">
-                    No records found. Click "Add Record" to create one.
-                </td>
-            </tr>
-        `;
+  if (data.length === 0) {
+    return `<tr><td colspan="5" class="px-4 py-4 text-center text-surface-500">No data available</td></tr>`;
   }
 
-  if (tableType === "tasks") {
-    return tableData
-      .map(
-        (task) => `
-            <tr class="border-t border-surface-200 hover:bg-surface-50">
-                <td class="px-4 py-3">${task.name}</td>
-                <td class="px-4 py-3">
-                    <span class="px-2 py-1 text-xs rounded-full ${
-                      task.status === "Completed"
-                        ? "bg-green-100 text-green-800"
-                        : task.status === "In Progress"
-                        ? "bg-blue-100 text-blue-800"
-                        : "bg-surface-100 text-surface-800"
-                    }">${task.status}</span>
-                </td>
-                <td class="px-4 py-3 text-sm">${task.due}</td>
-                <td class="px-4 py-3">
-                    <button class="p-1 text-surface-400 hover:text-surface-700">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 20h9"></path>
-                            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                        </svg>
-                    </button>
-                </td>
-            </tr>
-        `
-      )
-      .join("");
-  } else if (tableType === "people") {
-    return tableData
-      .map(
-        (person) => `
-            <tr class="border-t border-surface-200 hover:bg-surface-50">
-                <td class="px-4 py-3">${person.name}</td>
-                <td class="px-4 py-3">${person.role}</td>
-                <td class="px-4 py-3"><a href="mailto:${person.email}" class="text-primary-600 hover:underline">${person.email}</a></td>
-                <td class="px-4 py-3">
-                    <button class="p-1 text-surface-400 hover:text-surface-700">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 20h9"></path>
-                            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                        </svg>
-                    </button>
-                </td>
-            </tr>
-        `
-      )
-      .join("");
-  } else if (tableType === "notes") {
-    return tableData
-      .map(
-        (note) => `
-            <tr class="border-t border-surface-200 hover:bg-surface-50">
-                <td class="px-4 py-3">${note.title}</td>
-                <td class="px-4 py-3 truncate max-w-xs">${note.content}</td>
-                <td class="px-4 py-3 text-sm">${note.date}</td>
-                <td class="px-4 py-3">
-                    <button class="p-1 text-surface-400 hover:text-surface-700">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 20h9"></path>
-                            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                        </svg>
-                    </button>
-                </td>
-            </tr>
-        `
-      )
-      .join("");
-  } else if (tableType === "custom" && database.schema) {
-    // Custom table with schema
-    return tableData
-      .map((record) => {
-        let cells = "";
-        database.schema.forEach((field) => {
-          cells += `<td class="px-4 py-3">${record[field.name] || ""}</td>`;
-        });
+  // Get columns from first row
+  const columns = Object.keys(data[0]);
 
-        return `
-                <tr class="border-t border-surface-200 hover:bg-surface-50">
-                    ${cells}
-                    <td class="px-4 py-3">
-                        <button class="p-1 text-surface-400 hover:text-surface-700">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M12 20h9"></path>
-                                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                            </svg>
-                        </button>
-                    </td>
-                </tr>
-            `;
-      })
-      .join("");
-  }
-
-  return "";
+  // Generate rows HTML
+  return data
+    .map((row) => {
+      return `
+        <tr class="border-t border-surface-200 hover:bg-surface-50">
+          ${columns
+            .map((col) => {
+              let cellValue = row[col];
+              
+              // Format based on column type
+              if (col === "due" || col === "date") {
+                cellValue = new Date(cellValue).toLocaleDateString();
+              } else if (col === "status") {
+                const statusClass = 
+                  cellValue === "Completed" ? "bg-green-100 text-green-800" :
+                  cellValue === "In Progress" ? "bg-blue-100 text-blue-800" :
+                  "bg-gray-100 text-gray-800";
+                
+                cellValue = `<span class="px-2 py-1 rounded-full text-xs ${statusClass}">${cellValue}</span>`;
+              }
+              
+              return `<td class="px-4 py-3">${cellValue}</td>`;
+            })
+            .join("")}
+        </tr>
+      `;
+    })
+    .join("");
 }
 
-// Add a new record to the database
+// Add a new record
 function addNewRecord(database) {
-  const tableType = database.type;
+  // For now, use sample data based on database type
+  const table = database.type === "table" ? "tasks" : "people";
+  const data = getSampleData(database, table);
 
-  // Define default record based on table type
-  let newRecord;
-  let highestId = 0;
+  // Get columns from first row or default
+  const columns = data.length > 0 ? Object.keys(data[0]) : ["id", "name"];
 
-  // Find highest current ID
-  if (database.tables[tableType]) {
-    database.tables[tableType].forEach((record) => {
-      if (record.id > highestId) highestId = record.id;
+  // Create modal for adding record
+  const modal = document.createElement("div");
+  modal.id = "add-record-modal";
+  modal.className =
+    "modal fixed inset-0 bg-surface-900 bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 opacity-0 transition-opacity duration-300";
+
+  // Generate form fields based on columns
+  const formFields = columns
+    .map((col) => {
+      // Skip id field as it will be generated
+      if (col === "id") return "";
+
+      const colName = col
+        .split("_")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
+
+      let inputHTML = "";
+      if (col === "status") {
+        inputHTML = `
+          <select id="field-${col}" class="w-full px-4 py-2.5 border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
+            <option value="Not Started">Not Started</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Completed">Completed</option>
+          </select>
+        `;
+      } else if (col === "due" || col === "date") {
+        inputHTML = `<input id="field-${col}" type="date" class="w-full px-4 py-2.5 border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">`;
+      } else {
+        inputHTML = `<input id="field-${col}" type="text" class="w-full px-4 py-2.5 border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500" placeholder="Enter ${colName}">`;
+      }
+
+      return `
+        <div>
+          <label class="block text-sm font-medium text-surface-700 mb-2">${colName}</label>
+          ${inputHTML}
+        </div>
+      `;
+    })
+    .join("");
+
+  modal.innerHTML = `
+    <div class="modal-content bg-white rounded-xl shadow-xl p-6 w-full max-w-lg transform transition-all duration-300 scale-95">
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-xl font-display font-semibold text-surface-900">Add New Record</h3>
+        <button id="close-record-modal" class="p-2 rounded-lg hover:bg-surface-100 text-surface-500 hover:text-surface-700 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      
+      <div class="space-y-5">
+        ${formFields}
+        
+        <div class="pt-4 flex justify-end space-x-3">
+          <button id="cancel-record-btn" class="px-4 py-2.5 bg-surface-100 text-surface-700 rounded-lg hover:bg-surface-200 transition-colors">
+            Cancel
+          </button>
+          <button id="save-record-btn" class="px-4 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+            Save Record
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  // Fade in animation
+  setTimeout(() => {
+    modal.classList.add("opacity-100");
+    modal.querySelector(".modal-content").classList.add("scale-100");
+  }, 10);
+
+  // Add event listeners
+  document
+    .getElementById("close-record-modal")
+    .addEventListener("click", () => {
+      closeModal(modal);
     });
-  }
 
-  // Create new record with incremented ID
-  if (tableType === "tasks") {
-    newRecord = {
-      id: highestId + 1,
-      name: "New task",
-      status: "Not Started",
-      due: new Date().toISOString().split("T")[0], // Today's date
-    };
-  } else if (tableType === "people") {
-    newRecord = {
-      id: highestId + 1,
-      name: "New person",
-      role: "Role",
-      email: "email@example.com",
-    };
-  } else if (tableType === "notes") {
-    newRecord = {
-      id: highestId + 1,
-      title: "New note",
-      content: "Note content",
-      date: new Date().toISOString().split("T")[0], // Today's date
-    };
-  } else if (tableType === "custom" && database.schema) {
-    newRecord = { id: highestId + 1 };
-    database.schema.forEach((field) => {
-      // Set default values based on field type
-      switch (field.type) {
-        case "text":
-          newRecord[field.name] = "New entry";
-          break;
-        case "number":
-          newRecord[field.name] = 0;
-          break;
-        case "date":
-          newRecord[field.name] = new Date().toISOString().split("T")[0];
-          break;
-        case "boolean":
-          newRecord[field.name] = false;
-          break;
-        default:
-          newRecord[field.name] = "";
+  document.getElementById("cancel-record-btn").addEventListener("click", () => {
+    closeModal(modal);
+  });
+
+  document.getElementById("save-record-btn").addEventListener("click", () => {
+    // Collect form data
+    const newRecord = { id: data.length + 1 };
+    columns.forEach((col) => {
+      if (col !== "id") {
+        const field = document.getElementById(`field-${col}`);
+        if (field) {
+          newRecord[col] = field.value;
+        }
       }
     });
-  }
 
-  // Add new record to the database
-  if (newRecord) {
-    if (!database.tables[tableType]) {
-      database.tables[tableType] = [];
-    }
-
-    database.tables[tableType].push(newRecord);
-
-    // Update timestamp
+    // Add record to database (this is a simulation for now)
+    database.tables = database.tables || [];
+    const defaultTable = database.tables[0] || {
+      id: "table_" + Date.now(),
+      name: "Default Table",
+      columns: columns.map(col => ({ id: col, name: col, type: "text" })),
+      rows: []
+    };
+    
+    // Add new row to table
+    defaultTable.rows = defaultTable.rows || [];
+    defaultTable.rows.push(newRecord);
+    
+    // Update database in storage
     database.updated = new Date().toISOString();
-
-    // Save database list
-    saveDatabaseList();
-
-    // Refresh the view
-    viewDatabase(database.id);
-
-    showNotification("Record added", "success");
-  }
+    saveDatabase(database)
+      .then(() => {
+        showNotification("Record added successfully", "success");
+        
+        // Update the view
+        showDatabaseInterface(database);
+        
+        // Close modal
+        closeModal(modal);
+      })
+      .catch(error => {
+        console.error("Error saving database:", error);
+        showNotification("Failed to add record", "error");
+      });
+  });
 }
 
-// Save database list to local storage
+// Helper function to save database list
 function saveDatabaseList() {
-  try {
-    localStorage.setItem(
-      `foundry_databases_${appState.currentWorkspace?.id || "default"}`,
-      JSON.stringify(appState.databaseList)
-    );
-  } catch (err) {
-    console.error("Error saving databases:", err);
-    showNotification("Failed to save databases", "error");
-  }
+  // Use the new database storage module to save each database
+  appState.databaseList.forEach(db => {
+    saveDatabase(db, { silent: true }).catch(error => {
+      console.error(`Error saving database ${db.id}:`, error);
+    });
+  });
 }
 
-// Load database list from local storage
+// Load database list
 export function loadDatabaseList() {
-  try {
-    const databases = localStorage.getItem(
-      `foundry_databases_${appState.currentWorkspace?.id || "default"}`
-    );
-    if (databases) {
-      appState.databaseList = JSON.parse(databases);
+  listDatabasesFromStorage({ workspaceId: appState.currentWorkspace?.id })
+    .then(databases => {
+      appState.databaseList = databases;
       renderDatabaseList();
-    } else {
-      appState.databaseList = [];
-    }
-  } catch (err) {
-    console.error("Error loading databases:", err);
-    appState.databaseList = [];
-  }
+    })
+    .catch(error => {
+      console.error("Error loading database list:", error);
+    });
 }
 
-/**
- * Get default columns based on database type
- */
+// Get default columns based on database type
 function getDefaultColumns(type) {
   switch (type) {
     case "table":
       return [
-        { id: "col_1", name: "Name", type: "text" },
-        {
-          id: "col_2",
-          name: "Status",
-          type: "select",
-          options: ["To Do", "In Progress", "Done"],
-        },
-        { id: "col_3", name: "Due Date", type: "date" },
+        { id: "name", name: "Name", type: "text" },
+        { id: "status", name: "Status", type: "select", options: ["Not Started", "In Progress", "Completed"] },
+        { id: "due", name: "Due Date", type: "date" }
       ];
     case "list":
       return [
-        { id: "col_1", name: "Item", type: "text" },
-        { id: "col_2", name: "Completed", type: "checkbox" },
+        { id: "name", name: "Name", type: "text" },
+        { id: "description", name: "Description", type: "text" }
       ];
     case "kanban":
       return [
-        { id: "col_1", name: "Task", type: "text" },
-        {
-          id: "col_2",
-          name: "Status",
-          type: "select",
-          options: ["To Do", "In Progress", "Done"],
-        },
-        { id: "col_3", name: "Assignee", type: "person" },
+        { id: "title", name: "Title", type: "text" },
+        { id: "status", name: "Status", type: "select", options: ["To Do", "In Progress", "Done"] },
+        { id: "priority", name: "Priority", type: "select", options: ["Low", "Medium", "High"] }
       ];
     case "calendar":
       return [
-        { id: "col_1", name: "Event", type: "text" },
-        { id: "col_2", name: "Start Date", type: "date" },
-        { id: "col_3", name: "End Date", type: "date" },
+        { id: "title", name: "Title", type: "text" },
+        { id: "date", name: "Date", type: "date" },
+        { id: "description", name: "Description", type: "text" }
       ];
     default:
       return [
-        { id: "col_1", name: "Name", type: "text" },
-        { id: "col_2", name: "Notes", type: "text" },
+        { id: "name", name: "Name", type: "text" },
+        { id: "value", name: "Value", type: "text" }
       ];
   }
 }
 
-/**
- * Query database with caching
- * @param {string} dbId - Database ID
- * @param {Object} query - Query parameters
- * @returns {Array} - Results
- */
-export const queryDatabase = memoize(
-  function (dbId, query = {}) {
-    console.log(`Querying database ${dbId} with parameters:`, query);
-
-    // Check cache first
-    if (databaseCache.has(dbId)) {
-      const cachedData = databaseCache.get(dbId);
-      console.log(`Using cached data for database ${dbId}`);
-      return filterData(cachedData, query);
-    }
-
-    // Get database from storage
-    const databases = JSON.parse(localStorage.getItem("databases") || "{}");
-    const database = databases[dbId];
-
-    if (!database) {
-      console.error(`Database ${dbId} not found`);
-      return [];
-    }
-
-    // Cache the database for future queries (15 minutes TTL)
-    databaseCache.set(dbId, database, 15 * 60 * 1000);
-
-    // Apply query filters
-    return filterData(database, query);
-  },
-  (dbId, query) => {
-    // Resolver function to generate a unique cache key
-    return `${dbId}_${JSON.stringify(query)}`;
+// Helper function to get sample data for demonstration
+function getSampleData(database, table) {
+  // If database has actual data, use that first
+  if (database.tables && database.tables.length > 0 && 
+      database.tables[0].rows && database.tables[0].rows.length > 0) {
+    return database.tables[0].rows;
   }
-);
-
-/**
- * Filter database data based on query
- * @param {Object} database - Database object
- * @param {Object} query - Query parameters
- * @returns {Array} - Filtered rows
- */
-function filterData(database, query) {
-  // Make a copy of the rows to avoid modifying the original
-  let rows = [...database.rows];
-
-  // Apply filters if defined
-  if (query.filters) {
-    query.filters.forEach((filter) => {
-      rows = rows.filter((row) => {
-        const value = row[filter.column];
-        const filterValue = filter.value;
-
-        switch (filter.operator) {
-          case "equals":
-            return value === filterValue;
-          case "contains":
-            return typeof value === "string" && value.includes(filterValue);
-          case "greater_than":
-            return value > filterValue;
-          case "less_than":
-            return value < filterValue;
-          default:
-            return true;
-        }
-      });
-    });
-  }
-
-  // Apply sorting if defined
-  if (query.sort) {
-    rows.sort((a, b) => {
-      const valueA = a[query.sort.column];
-      const valueB = b[query.sort.column];
-
-      // Handle different data types
-      if (typeof valueA === "string" && typeof valueB === "string") {
-        return query.sort.direction === "asc"
-          ? valueA.localeCompare(valueB)
-          : valueB.localeCompare(valueA);
-      } else {
-        return query.sort.direction === "asc"
-          ? valueA - valueB
-          : valueB - valueA;
-      }
-    });
-  }
-
-  // Apply pagination if defined
-  if (query.limit) {
-    const start = query.offset || 0;
-    rows = rows.slice(start, start + query.limit);
-  }
-
-  return rows;
+  
+  // Otherwise use sample data
+  return sampleTableData[table] || [];
 }
 
-/**
- * Calculate database statistics - memoized for performance
- * @param {string} dbId - Database ID
- * @returns {Object} - Statistics
- */
-export const calculateDatabaseStats = memoize(function (dbId) {
-  console.log(`Calculating statistics for database ${dbId}`);
+// Filter data based on query
+function filterData(database, query) {
+  // For now, use sample data based on database type
+  const table = database.type === "table" ? "tasks" : "people";
+  const data = getSampleData(database, table);
 
-  // Get database from storage or cache
-  let database;
-  if (databaseCache.has(dbId)) {
-    database = databaseCache.get(dbId);
-  } else {
-    const databases = JSON.parse(localStorage.getItem("databases") || "{}");
-    database = databases[dbId];
+  if (!query) return data;
 
-    if (!database) {
-      console.error(`Database ${dbId} not found`);
-      return {
-        totalRows: 0,
-        columnStats: {},
-      };
-    }
+  // Convert query to lowercase for case-insensitive comparison
+  const lowerQuery = query.toLowerCase();
 
-    // Cache the database
-    databaseCache.set(dbId, database, 15 * 60 * 1000);
-  }
-
-  const stats = {
-    totalRows: database.rows.length,
-    columnStats: {},
-  };
-
-  // Calculate statistics for each column
-  database.columns.forEach((column) => {
-    const values = database.rows.map((row) => row[column.id]);
-
-    switch (column.type) {
-      case "number":
-        // Calculate numeric stats
-        const numValues = values.filter((v) => typeof v === "number");
-        stats.columnStats[column.id] = {
-          min: numValues.length ? Math.min(...numValues) : null,
-          max: numValues.length ? Math.max(...numValues) : null,
-          avg: numValues.length
-            ? numValues.reduce((a, b) => a + b, 0) / numValues.length
-            : null,
-          count: numValues.length,
-        };
-        break;
-
-      case "select":
-      case "checkbox":
-        // Calculate frequency distribution
-        const distribution = {};
-        values.forEach((value) => {
-          distribution[value] = (distribution[value] || 0) + 1;
-        });
-        stats.columnStats[column.id] = { distribution };
-        break;
-
-      case "date":
-        // Find date range
-        const dateValues = values
-          .filter((v) => v)
-          .map((v) => new Date(v).getTime());
-        stats.columnStats[column.id] = {
-          earliest: dateValues.length
-            ? new Date(Math.min(...dateValues))
-            : null,
-          latest: dateValues.length ? new Date(Math.max(...dateValues)) : null,
-          count: dateValues.length,
-        };
-        break;
-
-      default:
-        // Basic stats for other types
-        stats.columnStats[column.id] = {
-          count: values.filter((v) => v).length,
-          empty: values.filter((v) => !v).length,
-        };
-    }
+  // Filter data based on query
+  return data.filter((row) => {
+    // Check if any field contains the query
+    return Object.values(row).some((value) => {
+      return String(value).toLowerCase().includes(lowerQuery);
+    });
   });
-
-  return stats;
-});
+}

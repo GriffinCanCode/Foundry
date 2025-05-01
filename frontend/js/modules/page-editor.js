@@ -449,69 +449,112 @@ export function createNewEmptyDocument() {
  * @returns {Array} Array of block objects with type and content
  */
 export function getEditorContent() {
+    console.log('%c[EDITOR] getEditorContent called', 'background: #3b82f6; color: white; padding: 2px 4px; border-radius: 4px;');
     const editor = document.getElementById('editor');
-    if (!editor) return [];
+    if (!editor) {
+        console.warn('[EDITOR] Editor element not found');
+        return [];
+    }
     
     const blocks = editor.querySelectorAll('.block-container');
+    console.log(`[EDITOR] Found ${blocks.length} blocks in editor`);
+    
+    // If no blocks are found, check if we might need to create at least an empty one
+    if (blocks.length === 0 && editor.innerHTML.trim() !== '') {
+        console.warn('[EDITOR] No blocks found but editor has content - may need to fix structure');
+        
+        // Return at least an empty text block to preserve the document
+        return [{
+            id: `block_${Date.now()}_0`,
+            type: 'text',
+            content: editor.textContent || '',
+            position: 0,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        }];
+    }
+    
     const content = [];
     
-    blocks.forEach(block => {
-        let blockType = 'text';
+    blocks.forEach((block, index) => {
+        let blockType = block.dataset.blockType || 'text';
         let blockContent = '';
         let blockData = {};
         
-        // Determine block type
-        if (block.classList.contains('heading-block-container')) {
-            blockType = 'heading';
-        } else if (block.classList.contains('todo-block-container')) {
-            blockType = 'todo';
-            // Save checkbox state
-            blockData.checked = block.querySelector('.todo-checkbox')?.checked || false;
-        } else if (block.classList.contains('list-block-container')) {
-            blockType = 'list';
-        } else if (block.classList.contains('quote-block-container')) {
-            blockType = 'quote';
-        } else if (block.classList.contains('code-block-container')) {
-            blockType = 'code';
-            // Save language selection
-            blockData.language = block.querySelector('select')?.value || 'plain';
-        } else if (block.classList.contains('database-block-container')) {
-            blockType = 'database';
-            // Save database ID
-            blockData.databaseId = block.dataset.databaseId;
-        } else if (block.classList.contains('image-block-container')) {
-            blockType = 'image';
-            // Save image src
-            blockData.src = block.querySelector('img')?.src || '';
-            blockData.alt = block.querySelector('img')?.alt || '';
-        }
+        console.log(`[EDITOR] Processing block ${index + 1}/${blocks.length}, type: ${blockType}`);
         
-        // Get content based on block type
-        const editable = block.querySelector('[contenteditable=true]');
-        if (editable) {
-            blockContent = editable.textContent;
-        } else if (blockType === 'list') {
-            // For lists, gather items
-            const items = block.querySelectorAll('li');
-            blockContent = Array.from(items).map(item => item.textContent).join('\n');
-        } else if (blockType === 'database') {
-            // For database blocks, content is in the dataset
-            blockContent = block.dataset.query || '';
+        try {
+            // Get content based on block type
+            if (blockType === 'todo') {
+                // For todo blocks, get text content from the todo-text element
+                const todoText = block.querySelector('.todo-text');
+                if (todoText) {
+                    blockContent = todoText.textContent;
+                    // Save checkbox state
+                    blockData.checked = block.querySelector('.todo-checkbox')?.checked || false;
+                }
+            } else if (blockType === 'list') {
+                // For lists, gather items
+                const items = block.querySelectorAll('li');
+                if (items && items.length > 0) {
+                    blockContent = Array.from(items).map(item => item.textContent).join('\n');
+                    console.log(`[EDITOR] List block with ${items.length} items`);
+                }
+            } else if (blockType === 'database') {
+                // For database blocks, content is in the dataset
+                blockContent = block.dataset.query || '';
+                // Save database ID
+                blockData.databaseId = block.dataset.databaseId;
+            } else if (blockType === 'image') {
+                // Save image src
+                blockData.src = block.querySelector('img')?.src || '';
+                blockData.alt = block.querySelector('img')?.alt || '';
+                blockContent = block.querySelector('.image-caption')?.textContent || '';
+            } else {
+                // For text, heading, quote, code blocks - get content from editable element
+                const editable = block.querySelector('[contenteditable=true]');
+                if (editable) {
+                    blockContent = editable.textContent;
+                    console.log(`[EDITOR] ${blockType} block content: "${blockContent.substring(0, 30)}${blockContent.length > 30 ? '...' : ''}"`);
+                } else {
+                    console.warn(`[EDITOR] Could not find editable element for ${blockType} block`);
+                }
+                
+                // For code blocks, save language selection
+                if (blockType === 'code') {
+                    blockData.language = block.querySelector('select')?.value || 'plain';
+                }
+            }
+            
+            // Create the block object with position, id and metadata
+            const blockObj = {
+                id: block.id || `block_${Date.now()}_${content.length}`,
+                type: blockType,
+                content: blockContent,
+                position: content.length,
+                ...blockData,
+                // Preserve existing metadata if present
+                createdAt: block.dataset.createdAt || new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
+            
+            content.push(blockObj);
+            console.log(`[EDITOR] Added block to content array: ${blockType}, content length: ${blockContent.length}`);
+        } catch (error) {
+            console.error(`[EDITOR] Error processing block ${index}:`, error);
+            // Add a minimal representation to avoid losing the block entirely
+            content.push({
+                id: block.id || `block_${Date.now()}_${content.length}`,
+                type: blockType,
+                content: block.textContent || '',
+                position: content.length,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            });
         }
-        
-        // Create the block object with position, id and metadata
-        content.push({
-            id: block.id || `block_${Date.now()}_${content.length}`,
-            type: blockType,
-            content: blockContent,
-            position: content.length,
-            ...blockData,
-            // Preserve existing metadata if present
-            createdAt: block.dataset.createdAt || new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        });
     });
     
+    console.log(`[EDITOR] Returning ${content.length} blocks from getEditorContent`);
     return content;
 }
 

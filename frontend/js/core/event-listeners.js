@@ -115,16 +115,58 @@ function setupSpecificEventListeners() {
   // Document title auto-save on blur
   const documentTitle = document.getElementById("document-title");
   if (documentTitle) {
+    // Input event for immediate updates
+    const titleInputHandler = () => {
+      if (appState.currentDocument) {
+        const newTitle = documentTitle.textContent || "Untitled";
+        const oldTitle = appState.currentDocument.title;
+        
+        console.log('%c[TITLE] Input event detected', 'background: #e11d48; color: white; padding: 2px 4px; border-radius: 4px');
+        console.log(`[TITLE] Old title: "${oldTitle}", New title: "${newTitle}"`);
+        
+        // Only update if title has actually changed
+        if (oldTitle !== newTitle) {
+          console.log('[TITLE] Title has changed, updating document');
+          
+          // Update the current document title
+          appState.currentDocument.title = newTitle;
+          
+          // Find and update the document in the document list
+          const index = appState.documentList.findIndex(doc => doc.id === appState.currentDocument.id);
+          if (index !== -1) {
+            console.log(`[TITLE] Updating title in documentList[${index}]`);
+            appState.documentList[index].title = newTitle;
+            
+            // Update the sidebar to reflect title changes immediately
+            import('../modules/ui.js').then(module => {
+              module.renderDocumentList();
+            });
+          } else {
+            console.warn('[TITLE] Document not found in documentList!');
+          }
+        }
+      }
+    };
+    
+    // Blur event for saving to storage
     const titleBlurHandler = () => {
       if (appState.currentDocument) {
-        saveCurrentDocument(true); // Silent save
+        console.log('[TITLE] Blur event, saving document with title:', documentTitle.textContent);
+        import('../modules/document.js').then(module => {
+          module.saveCurrentDocument(true); // Silent save
+        });
       }
     };
 
     // Remove existing listener to prevent duplicates
+    documentTitle.removeEventListener("input", titleInputHandler);
     documentTitle.removeEventListener("blur", titleBlurHandler);
-    // Add new listener
+    
+    // Add new listeners
+    documentTitle.addEventListener("input", titleInputHandler);
     documentTitle.addEventListener("blur", titleBlurHandler);
+    
+    console.log('[EVENT] Document title event listeners set up');
   }
 
   // Set up global keyboard shortcuts
