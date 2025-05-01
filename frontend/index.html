@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.tailwindcss.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self'">
     <title>Foundry Concept: Modern Block Editor</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/lucide-static@latest/dist/lucide.min.js"></script>
+    <script src="js/lucide.min.js"></script>
     <link rel="stylesheet" href="css/styles.css">
     <script>
         tailwind.config = {
@@ -56,7 +56,7 @@
 <body class="bg-surface-50 text-surface-900 font-sans">
     <!-- Workspace Selection Screen (Hidden Initially) -->
     <div id="workspace-selection" class="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-primary-50 to-surface-100 p-4" style="display: none;">
-        <div class="w-full max-w-2xl bg-white rounded-xl shadow-card p-8">
+        <div class="w-full max-w-2xl bg-white rounded-xl shadow-card p-8 scale-in">
             <h1 class="text-3xl font-display font-bold mb-8 text-center text-primary-800">Welcome to Foundry</h1>
             
             <div class="mb-8">
@@ -67,7 +67,7 @@
             </div>
             
             <div class="flex justify-between items-center">
-                <button id="create-workspace-btn" class="px-5 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium transition-all duration-200 transform hover:translate-y-[-1px] flex items-center space-x-2">
+                <button id="create-workspace-btn" class="px-5 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium transition-all duration-200 transform hover:translate-y-[-1px] hover:shadow-md flex items-center space-x-2">
                     <i data-lucide="plus" class="w-4 h-4"></i>
                     <span>Create New Workspace</span>
                 </button>
@@ -120,22 +120,22 @@
     <!-- Main Content -->
     <main class="p-6 md:p-8 min-h-screen transition-all duration-300" id="main-content">
         <!-- Fixed sidebar toggle button -->
-        <button id="sidebar-toggle-fixed" class="sidebar-toggle-fixed bg-white border border-surface-200 rounded-full shadow-md">
+        <button id="sidebar-toggle-fixed" class="sidebar-toggle-fixed">
             <i data-lucide="chevron-right"></i>
         </button>
         
         <!-- Top Bar -->
-        <div class="toolbar mb-8 bg-white shadow-card rounded-lg p-2">
+        <div class="toolbar mb-8">
             <div class="flex items-center">
                 <button id="sidebar-toggle" class="p-2 mr-2 md:hidden rounded-md hover:bg-surface-100 text-surface-500 hover:text-surface-900 transition-colors">
                     <i data-lucide="menu"></i>
                 </button>
                 <div class="flex items-center space-x-2">
-                    <button class="toolbar-button">
+                    <button class="toolbar-button" id="share-button">
                         <i data-lucide="share-2"></i>
                         <span>Share</span>
                     </button>
-                    <button class="toolbar-button">
+                    <button class="toolbar-button" id="settings-button">
                         <i data-lucide="settings"></i>
                         <span>Settings</span>
                     </button>
@@ -146,7 +146,7 @@
                 </div>
             </div>
             <div>
-                <button id="save-document" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium transition-colors flex items-center space-x-2">
+                <button id="save-document" class="toolbar-button primary">
                     <i data-lucide="save" class="w-4 h-4"></i>
                     <span>Save</span>
                 </button>
@@ -154,30 +154,30 @@
         </div>
         
         <!-- Document Content Area -->
-        <div class="foundry-container max-w-4xl mx-auto">
-            <input type="text" id="document-title" placeholder="Untitled" class="document-title text-3xl font-display font-bold mb-6 w-full bg-transparent border-none focus:outline-none text-surface-900"/>
+        <div class="foundry-container">
+            <input type="text" id="document-title" placeholder="Untitled" class="document-title"/>
             
-            <div class="content-area bg-white rounded-xl shadow-card p-6 mb-6">
+            <div class="content-area mb-6">
                 <div id="editor" class="space-y-4 min-h-[300px]">
                     <!-- Editor blocks will be inserted here -->
                 </div>
                 
-                <div class="add-block-menu bg-surface-50 rounded-lg mt-6 p-3 flex flex-wrap items-center">
+                <div class="add-block-menu">
                     <span class="text-sm font-medium text-surface-600 mr-4 flex items-center">Add Block:</span>
                     <div class="flex flex-wrap gap-2">
-                        <button onclick="addBlock('text')" class="add-block-button">
+                        <button id="add-text-btn" class="add-block-button">
                             <i data-lucide="type" class="w-4 h-4"></i>
                             <span>Text</span>
                         </button>
-                        <button onclick="addBlock('heading')" class="add-block-button">
+                        <button id="add-heading-btn" class="add-block-button">
                             <i data-lucide="heading" class="w-4 h-4"></i>
                             <span>Heading</span>
                         </button>
-                        <button onclick="addBlock('todo')" class="add-block-button">
+                        <button id="add-todo-btn" class="add-block-button">
                             <i data-lucide="check-square" class="w-4 h-4"></i>
                             <span>To-Do</span>
                         </button>
-                        <button onclick="showBlockMenu()" class="add-block-button">
+                        <button id="more-blocks-btn" class="add-block-button">
                             <i data-lucide="plus" class="w-4 h-4"></i>
                             <span>More</span>
                         </button>
@@ -186,15 +186,15 @@
             </div>
             
             <!-- Sample Database View -->
-            <div class="database-view fade-in bg-white rounded-xl shadow-card overflow-hidden" id="sample-database" style="display: none;">
-                <div class="database-header p-4 border-b border-surface-200 bg-surface-50 flex items-center justify-between">
-                    <h3 class="database-title font-display font-semibold text-lg text-surface-900">Tasks</h3>
+            <div class="database-view fade-in" id="sample-database" style="display: none;">
+                <div class="database-header">
+                    <h3 class="database-title">Tasks</h3>
                     <div class="database-controls flex items-center">
-                        <div class="database-view-selector flex rounded-lg overflow-hidden mr-2 border border-surface-200 bg-white">
-                            <div class="view-option active px-3 py-1.5 text-sm font-medium">Table</div>
-                            <div class="view-option px-3 py-1.5 text-sm font-medium">Board</div>
-                            <div class="view-option px-3 py-1.5 text-sm font-medium">List</div>
-                            <div class="view-option px-3 py-1.5 text-sm font-medium">Calendar</div>
+                        <div class="database-view-selector">
+                            <div class="view-option active">Table</div>
+                            <div class="view-option">Board</div>
+                            <div class="view-option">List</div>
+                            <div class="view-option">Calendar</div>
                         </div>
                         <button class="p-2 rounded-md hover:bg-surface-200 text-surface-700 transition-colors">
                             <i data-lucide="plus" class="w-4 h-4"></i>
@@ -206,45 +206,45 @@
                     <p class="text-surface-500 text-sm italic">Sample database view - Click "New Row" to add data</p>
                     
                     <div class="overflow-x-auto mt-3 rounded-lg border border-surface-200">
-                        <table class="w-full mt-3 border-collapse">
+                        <table class="w-full mt-3">
                             <thead>
-                                <tr class="text-left bg-surface-50">
-                                    <th class="px-4 py-3 font-medium text-surface-700 border-b border-surface-200">Name</th>
-                                    <th class="px-4 py-3 font-medium text-surface-700 border-b border-surface-200">Status</th>
-                                    <th class="px-4 py-3 font-medium text-surface-700 border-b border-surface-200">Assigned To</th>
-                                    <th class="px-4 py-3 font-medium text-surface-700 border-b border-surface-200">Due Date</th>
+                                <tr class="text-left">
+                                    <th>Name</th>
+                                    <th>Status</th>
+                                    <th>Assigned To</th>
+                                    <th>Due Date</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr class="border-b border-surface-100 hover:bg-surface-50">
-                                    <td class="px-4 py-3">Setup foundry project</td>
-                                    <td class="px-4 py-3">
-                                        <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800 font-medium">Done</span>
+                                <tr>
+                                    <td>Setup foundry project</td>
+                                    <td>
+                                        <span class="status-badge green">Done</span>
                                     </td>
-                                    <td class="px-4 py-3">John Doe</td>
-                                    <td class="px-4 py-3">Yesterday</td>
+                                    <td>John Doe</td>
+                                    <td>Yesterday</td>
                                 </tr>
-                                <tr class="border-b border-surface-100 hover:bg-surface-50">
-                                    <td class="px-4 py-3">Design block editor UI</td>
-                                    <td class="px-4 py-3">
-                                        <span class="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 font-medium">In Progress</span>
+                                <tr>
+                                    <td>Design block editor UI</td>
+                                    <td>
+                                        <span class="status-badge blue">In Progress</span>
                                     </td>
-                                    <td class="px-4 py-3">Jane Smith</td>
-                                    <td class="px-4 py-3">Today</td>
+                                    <td>Jane Smith</td>
+                                    <td>Today</td>
                                 </tr>
-                                <tr class="hover:bg-surface-50">
-                                    <td class="px-4 py-3">Implement database features</td>
-                                    <td class="px-4 py-3">
-                                        <span class="px-2 py-1 text-xs rounded-full bg-yellow-100 text-yellow-800 font-medium">To Do</span>
+                                <tr>
+                                    <td>Implement database features</td>
+                                    <td>
+                                        <span class="status-badge yellow">To Do</span>
                                     </td>
-                                    <td class="px-4 py-3">Alex Johnson</td>
-                                    <td class="px-4 py-3">Next week</td>
+                                    <td>Alex Johnson</td>
+                                    <td>Next week</td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
                     
-                    <button class="mt-4 px-4 py-2 text-sm text-surface-700 border border-surface-300 rounded-lg hover:bg-surface-100 flex items-center transition-colors">
+                    <button id="add-row-btn" class="mt-4 px-4 py-2 text-sm text-surface-700 border border-surface-300 rounded-lg hover:bg-surface-100 flex items-center transition-colors">
                         <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
                         <span>New Row</span>
                     </button>
@@ -254,41 +254,41 @@
     </main>
     
     <!-- Block Menu (Hidden by default) -->
-    <div id="block-menu" class="fixed inset-0 bg-surface-900 bg-opacity-60 flex items-center justify-center hidden backdrop-blur-sm">
-        <div class="bg-white rounded-xl shadow-xl p-6 max-w-md w-full">
+    <div id="block-menu" class="fixed inset-0 bg-surface-900 bg-opacity-60 flex items-center justify-center hidden">
+        <div class="bg-white rounded-xl shadow-xl p-6 max-w-md w-full scale-in">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-xl font-display font-semibold text-surface-900">Add a Block</h3>
-                <button onclick="hideBlockMenu()" class="p-2 rounded-lg hover:bg-surface-100 text-surface-500 hover:text-surface-700 transition-colors">
+                <button id="hide-block-menu-btn" class="p-2 rounded-lg hover:bg-surface-100 text-surface-500 hover:text-surface-700 transition-colors">
                     <i data-lucide="x"></i>
                 </button>
             </div>
             
             <div class="grid grid-cols-2 gap-3">
-                <button onclick="addBlock('text'); hideBlockMenu();" class="p-4 border border-surface-200 rounded-lg hover:bg-surface-50 hover:border-primary-200 text-left transition-colors">
+                <button id="add-text-block-btn" class="p-4 border border-surface-200 rounded-lg hover:bg-primary-50 hover:border-primary-300 text-left transition-all duration-200 hover:shadow-sm">
                     <div class="font-medium">Text</div>
                     <div class="text-sm text-surface-500">Simple paragraph text</div>
                 </button>
-                <button onclick="addBlock('heading'); hideBlockMenu();" class="p-4 border border-surface-200 rounded-lg hover:bg-surface-50 hover:border-primary-200 text-left transition-colors">
+                <button id="add-heading-block-btn" class="p-4 border border-surface-200 rounded-lg hover:bg-primary-50 hover:border-primary-300 text-left transition-all duration-200 hover:shadow-sm">
                     <div class="font-medium">Heading</div>
                     <div class="text-sm text-surface-500">Section title</div>
                 </button>
-                <button onclick="addBlock('todo'); hideBlockMenu();" class="p-4 border border-surface-200 rounded-lg hover:bg-surface-50 hover:border-primary-200 text-left transition-colors">
+                <button id="add-todo-block-btn" class="p-4 border border-surface-200 rounded-lg hover:bg-primary-50 hover:border-primary-300 text-left transition-all duration-200 hover:shadow-sm">
                     <div class="font-medium">To-Do</div>
                     <div class="text-sm text-surface-500">Checklist item</div>
                 </button>
-                <button onclick="addBlock('list'); hideBlockMenu();" class="p-4 border border-surface-200 rounded-lg hover:bg-surface-50 hover:border-primary-200 text-left transition-colors">
+                <button id="add-list-block-btn" class="p-4 border border-surface-200 rounded-lg hover:bg-primary-50 hover:border-primary-300 text-left transition-all duration-200 hover:shadow-sm">
                     <div class="font-medium">Bullet List</div>
                     <div class="text-sm text-surface-500">Simple bulleted list</div>
                 </button>
-                <button onclick="addBlock('quote'); hideBlockMenu();" class="p-4 border border-surface-200 rounded-lg hover:bg-surface-50 hover:border-primary-200 text-left transition-colors">
+                <button id="add-quote-block-btn" class="p-4 border border-surface-200 rounded-lg hover:bg-primary-50 hover:border-primary-300 text-left transition-all duration-200 hover:shadow-sm">
                     <div class="font-medium">Quote</div>
                     <div class="text-sm text-surface-500">Blockquote for citations</div>
                 </button>
-                <button onclick="addBlock('code'); hideBlockMenu();" class="p-4 border border-surface-200 rounded-lg hover:bg-surface-50 hover:border-primary-200 text-left transition-colors">
+                <button id="add-code-block-btn" class="p-4 border border-surface-200 rounded-lg hover:bg-primary-50 hover:border-primary-300 text-left transition-all duration-200 hover:shadow-sm">
                     <div class="font-medium">Code</div>
                     <div class="text-sm text-surface-500">Code snippet with highlighting</div>
                 </button>
-                <button onclick="addDatabaseBlock(); hideBlockMenu();" class="p-4 border border-surface-200 rounded-lg hover:bg-surface-50 hover:border-primary-200 text-left col-span-2 transition-colors">
+                <button id="add-database-block-btn" class="p-4 border border-surface-200 rounded-lg hover:bg-primary-50 hover:border-primary-300 text-left col-span-2 transition-all duration-200 hover:shadow-sm">
                     <div class="font-medium">Database</div>
                     <div class="text-sm text-surface-500">Add a new database or link to existing one</div>
                 </button>
@@ -297,7 +297,92 @@
     </div>
 
     <!-- Load scripts -->
-    <script src="js/editor.js"></script>
-    <script src="js/app.js"></script>
+    <script type="module" src="js/index.js"></script>
+    <script>
+        // Add event listeners for block actions
+        document.addEventListener('DOMContentLoaded', function() {
+            // Import modules for UI interaction
+            import('./js/modules/blocks.js').then(blocksModule => {
+                const { addBlock, showBlockMenu, hideBlockMenu, addDatabaseBlock } = blocksModule;
+                
+                // Add block buttons
+                document.getElementById('add-text-btn')?.addEventListener('click', function() {
+                    addBlock('text');
+                });
+                
+                document.getElementById('add-heading-btn')?.addEventListener('click', function() {
+                    addBlock('heading');
+                });
+                
+                document.getElementById('add-todo-btn')?.addEventListener('click', function() {
+                    addBlock('todo');
+                });
+                
+                document.getElementById('more-blocks-btn')?.addEventListener('click', function() {
+                    showBlockMenu();
+                });
+                
+                // Block menu buttons
+                document.getElementById('hide-block-menu-btn')?.addEventListener('click', function() {
+                    hideBlockMenu();
+                });
+                
+                document.getElementById('add-text-block-btn')?.addEventListener('click', function() {
+                    addBlock('text');
+                    hideBlockMenu();
+                });
+                
+                document.getElementById('add-heading-block-btn')?.addEventListener('click', function() {
+                    addBlock('heading');
+                    hideBlockMenu();
+                });
+                
+                document.getElementById('add-todo-block-btn')?.addEventListener('click', function() {
+                    addBlock('todo');
+                    hideBlockMenu();
+                });
+                
+                document.getElementById('add-list-block-btn')?.addEventListener('click', function() {
+                    addBlock('list');
+                    hideBlockMenu();
+                });
+                
+                document.getElementById('add-quote-block-btn')?.addEventListener('click', function() {
+                    addBlock('quote');
+                    hideBlockMenu();
+                });
+                
+                document.getElementById('add-code-block-btn')?.addEventListener('click', function() {
+                    addBlock('code');
+                    hideBlockMenu();
+                });
+                
+                document.getElementById('add-database-block-btn')?.addEventListener('click', function() {
+                    addDatabaseBlock();
+                    hideBlockMenu();
+                });
+            });
+            
+            // Import modules for dialog handling
+            import('./js/modules/dialogs.js').then(dialogsModule => {
+                const { showShareDialog, showSettingsDialog } = dialogsModule;
+                
+                // Toolbar buttons
+                document.getElementById('share-button')?.addEventListener('click', function() {
+                    showShareDialog();
+                });
+                
+                document.getElementById('settings-button')?.addEventListener('click', function() {
+                    showSettingsDialog();
+                });
+            });
+            
+            // Database buttons
+            document.getElementById('add-row-btn')?.addEventListener('click', function() {
+                // In a real app, this would add a row to the database
+                alert('Adding a new row to the database');
+            });
+        });
+    </script>
 </body>
 </html> 

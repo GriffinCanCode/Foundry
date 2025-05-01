@@ -1,47 +1,15 @@
 /**
- * editor.js - Compatibility layer for legacy code
- * 
- * This file ensures backward compatibility with existing code that might
- * directly reference the old editor.js. It imports and re-exports functionality
- * from our new modular structure.
+ * blocks.js - Block creation and management
  */
 
-import { 
-    createBlockElement, 
-    addBlock, 
-    addDatabaseBlock,
-    showBlockMenu,
-    hideBlockMenu
-} from './modules/blocks.js';
-import { 
-    handleDragStart, 
-    handleDragOver, 
-    handleDragLeave, 
-    handleDrop, 
-    handleDragEnd 
-} from './modules/drag-drop.js';
+import { handleDragStart, handleDragOver, handleDragLeave, handleDrop, handleDragEnd } from './drag-drop.js';
+import { showNotification } from '../utils/notifications.js';
 
-// Re-export all the functions for backward compatibility
-window.createBlockElement = createBlockElement;
-window.addBlock = addBlock;
-window.addDatabaseBlock = addDatabaseBlock;
-window.showBlockMenu = showBlockMenu;
-window.hideBlockMenu = hideBlockMenu;
-window.handleDragStart = handleDragStart;
-window.handleDragOver = handleDragOver;
-window.handleDragLeave = handleDragLeave;
-window.handleDrop = handleDrop;
-window.handleDragEnd = handleDragEnd;
-
-console.warn('Using editor.js compatibility layer - consider updating your imports to use the modular structure directly');
-
-const editor = document.getElementById('editor');
 let blockIdCounter = 0; // Simple counter for unique IDs
-let draggedItem = null;
 let dropIndicator = null; // Reference to the visual indicator line
 
 // Function to create a new block element with enhanced styling
-function createBlockElement(type, content = '') {
+export function createBlockElement(type, content = '') {
     const blockContainer = document.createElement('div');
     // Base classes for container with improved styling
     blockContainer.className = 'block-container group relative transition-all duration-200 hover:bg-surface-50 rounded-lg p-3';
@@ -338,7 +306,8 @@ function createBlockElement(type, content = '') {
             
             // Backspace on empty block removes it
             if (e.key === 'Backspace' && editableElement.textContent.trim() === '') {
-                if (editor.children.length > 1) { // Don't remove the last block
+                const editor = document.getElementById('editor');
+                if (editor && editor.children.length > 1) { // Don't remove the last block
                     e.preventDefault();
                     
                     // Find the previous block to focus after removal
@@ -439,7 +408,7 @@ function handleMarkdownShortcuts(e) {
 }
 
 // Transform a block from one type to another
-function transformBlock(blockContainer, newType) {
+export function transformBlock(blockContainer, newType) {
     // Get the content from the current block
     let content = '';
     const currentType = blockContainer.classList.contains('todo-block-container') ? 'todo' :
@@ -460,7 +429,10 @@ function transformBlock(blockContainer, newType) {
     const newBlock = createBlockElement(newType, content);
     
     // Replace the old block with the new one
-    editor.replaceChild(newBlock, blockContainer);
+    const editor = document.getElementById('editor');
+    if (editor) {
+        editor.replaceChild(newBlock, blockContainer);
+    }
     
     // Focus the new block
     const newEditable = newBlock.querySelector('[contenteditable=true]');
@@ -470,224 +442,25 @@ function transformBlock(blockContainer, newType) {
 }
 
 // Function to add a new block to the editor
-function addBlock(type, content = '') {
+export function addBlock(type, content = '') {
+    const editor = document.getElementById('editor');
+    if (!editor) return null;
+    
     const newBlock = createBlockElement(type, content);
     editor.appendChild(newBlock);
+    
     // Focus the new block's editable area
     const editable = newBlock.querySelector('[contenteditable=true]');
     if (editable) {
         // Small delay to ensure element is fully in DOM for focus
         setTimeout(() => editable.focus(), 0);
     }
-}
-
-// --- Improved Drag and Drop Logic ---
-function handleDragStart(e) {
-    draggedItem = e.target.closest('.block-container');
-    if (!draggedItem) return;
-
-    // Add dragging style effect with animation
-    setTimeout(() => {
-        if(draggedItem) {
-            draggedItem.classList.add('dragging');
-            draggedItem.classList.add('shadow-md', 'bg-surface-100', 'opacity-75', 'scale-[0.98]');
-        }
-    }, 0);
-
-    // Set data transfer (required for Firefox)
-    e.dataTransfer.setData('text/plain', draggedItem.id);
-    e.dataTransfer.effectAllowed = 'move';
-
-    // Create drop indicator line with improved styling
-    if (!dropIndicator) {
-        dropIndicator = document.createElement('div');
-        dropIndicator.className = 'drag-indicator h-1 bg-primary-500 rounded-full shadow-sm'; 
-        dropIndicator.style.display = 'none';
-        document.body.appendChild(dropIndicator);
-    }
-}
-
-function handleDragOver(e) {
-    e.preventDefault(); // Necessary to allow dropping
-    if (!draggedItem) return;
-
-    e.dataTransfer.dropEffect = 'move';
-
-    const targetItem = e.target.closest('.block-container');
-
-    if (targetItem && targetItem !== draggedItem) {
-         const rect = targetItem.getBoundingClientRect();
-         const editorRect = editor.getBoundingClientRect();
-         const midpoint = rect.top + rect.height / 2;
-
-         // Calculate indicator position relative to the viewport
-         let indicatorTop;
-         if (e.clientY < midpoint) {
-            // Place indicator above the target item
-            indicatorTop = rect.top;
-         } else {
-            // Place indicator below the target item
-            indicatorTop = rect.bottom;
-         }
-
-         // Position indicator with animation
-         if (dropIndicator) {
-            dropIndicator.style.display = 'block';
-            dropIndicator.style.top = `${indicatorTop + window.scrollY - 2}px`; // -2 to center the indicator
-            dropIndicator.style.left = `${editorRect.left + window.scrollX + 10}px`; // 10px indent for better visual
-            dropIndicator.style.width = `${editorRect.width - 20}px`; // -20 for margins on both sides
-            
-            // Add animation effect
-            dropIndicator.style.opacity = '1';
-            dropIndicator.style.transform = 'scaleY(1)';
-            dropIndicator.style.transition = 'opacity 150ms, transform 150ms';
-         }
-
-    } else if (targetItem === draggedItem) {
-         // Hovering over the dragged item itself, hide indicator
-         if (dropIndicator) {
-            hideDropIndicator();
-         }
-    } else {
-        // Hovering over empty space in the editor
-        const lastBlock = editor.lastElementChild;
-        if (lastBlock && e.clientY > lastBlock.getBoundingClientRect().bottom) {
-             const editorRect = editor.getBoundingClientRect();
-             if (dropIndicator) {
-                dropIndicator.style.display = 'block';
-                dropIndicator.style.top = `${lastBlock.getBoundingClientRect().bottom + window.scrollY - 2}px`;
-                dropIndicator.style.left = `${editorRect.left + window.scrollX + 10}px`;
-                dropIndicator.style.width = `${editorRect.width - 20}px`;
-                
-                // Add animation effect
-                dropIndicator.style.opacity = '1';
-                dropIndicator.style.transform = 'scaleY(1)';
-                dropIndicator.style.transition = 'opacity 150ms, transform 150ms';
-            }
-        } else {
-            hideDropIndicator();
-        }
-    }
-}
-
-function hideDropIndicator() {
-    if (dropIndicator) {
-        dropIndicator.style.opacity = '0';
-        dropIndicator.style.transform = 'scaleY(0.5)';
-        setTimeout(() => {
-            dropIndicator.style.display = 'none';
-        }, 150);
-    }
-}
-
-function handleDragLeave(e) {
-     // If leaving a potential drop target container, hide the indicator
-     const relatedTarget = e.relatedTarget;
-     const targetItem = e.target.closest('.block-container');
-     // Hide if moving outside the editor area or not onto another block
-     if (targetItem && (!relatedTarget || !targetItem.contains(relatedTarget))) {
-        // Check carefully if leaving the editor area entirely
-        const editorRect = editor.getBoundingClientRect();
-        if (e.clientX < editorRect.left || e.clientX > editorRect.right || e.clientY < editorRect.top || e.clientY > editorRect.bottom) {
-            hideDropIndicator();
-        }
-     }
-}
-
-function handleDrop(e) {
-    e.preventDefault();
-    if (!draggedItem) return;
-
-    // Hide drop indicator
-    hideDropIndicator();
-
-    const targetItem = e.target.closest('.block-container');
-
-    if (targetItem && targetItem !== draggedItem) {
-        // Determine drop position relative to target
-        const rect = targetItem.getBoundingClientRect();
-        const midpoint = rect.top + rect.height / 2;
-
-        if (e.clientY < midpoint) {
-            // Insert dragged item before target item
-            editor.insertBefore(draggedItem, targetItem);
-        } else {
-            // Insert dragged item after target item
-            editor.insertBefore(draggedItem, targetItem.nextSibling);
-        }
-    } else if (!targetItem) {
-        // Dropped in empty space below last item?
-        const lastBlock = editor.lastElementChild;
-        if (lastBlock && e.clientY > lastBlock.getBoundingClientRect().bottom) {
-            editor.appendChild(draggedItem);
-        }
-    }
-
-    // Clean up dragging styles with animation
-    draggedItem.classList.remove('dragging', 'shadow-md', 'bg-surface-100', 'opacity-75', 'scale-[0.98]');
     
-    // Add highlight effect to show where the block was placed
-    draggedItem.classList.add('bg-primary-50');
-    setTimeout(() => {
-        draggedItem.classList.remove('bg-primary-50');
-    }, 800);
-    
-    draggedItem = null;
+    return newBlock;
 }
 
-function handleDragEnd(e) {
-    // Ensure cleanup happens even if drop fails or drag is cancelled
-    if (draggedItem) {
-        draggedItem.classList.remove('dragging', 'shadow-md', 'bg-surface-100', 'opacity-75', 'scale-[0.98]');
-        draggedItem = null;
-    }
-    
-    hideDropIndicator();
-}
-
-// Database-related functions
-function createDatabase(dbConfig) {
-    if (window.foundryAPI) {
-        return window.foundryAPI.createDatabase(dbConfig);
-    } else {
-        // Fallback for when running without Electron
-        console.log('Would create database:', dbConfig);
-        // Simulate an API response
-        return Promise.resolve({ 
-            success: true, 
-            id: 'db_' + Date.now(),
-            message: 'Database created (simulated)'
-        });
-    }
-}
-
-function queryDatabase(dbId, query = {}) {
-    if (window.foundryAPI) {
-        return window.foundryAPI.queryDatabase(dbId, query);
-    } else {
-        // Fallback for when running without Electron
-        console.log('Would query database:', dbId, query);
-        // Simulate an API response with sample data
-        return Promise.resolve({
-            success: true,
-            results: [
-                { id: 1, name: 'Sample task 1', status: 'Done', assignee: 'John Doe', dueDate: '2023-07-01' },
-                { id: 2, name: 'Sample task 2', status: 'In Progress', assignee: 'Jane Smith', dueDate: '2023-07-15' },
-                { id: 3, name: 'Sample task 3', status: 'To Do', assignee: 'Alex Johnson', dueDate: '2023-07-30' }
-            ],
-            total: 3
-        });
-    }
-}
-
-// Expose key functions globally for use in HTML handlers
-window.addBlock = addBlock;
-window.transformBlock = transformBlock;
-window.createDatabase = createDatabase;
-window.queryDatabase = queryDatabase;
-
-// Function to handle editing blocks via the edit button (improved styling)
-function editBlock(blockContainer) {
+// Function to handle editing blocks via the edit button
+export function editBlock(blockContainer) {
     const blockType = blockContainer.classList.contains('todo-block-container') ? 'todo' :
                       blockContainer.querySelector('.heading-block') ? 'heading' :
                       blockContainer.querySelector('.list-block') ? 'list' :
@@ -848,7 +621,10 @@ function editBlock(blockContainer) {
             blockContainer.style.transition = 'opacity 300ms, transform 300ms';
             
             setTimeout(() => {
-                editor.replaceChild(newBlock, blockContainer);
+                const editor = document.getElementById('editor');
+                if (editor) {
+                    editor.replaceChild(newBlock, blockContainer);
+                }
             }, 300);
         } else {
             // Just update content without changing block type
@@ -900,8 +676,8 @@ function editBlock(blockContainer) {
     }
 }
 
-// Slash command menu for enhanced block creation with improved styling
-function showSlashCommandMenu(blockContainer) {
+// Slash command menu for enhanced block creation
+export function showSlashCommandMenu(blockContainer) {
     // Position of the current block for menu placement
     const rect = blockContainer.getBoundingClientRect();
     
@@ -1108,13 +884,47 @@ function showSlashCommandMenu(blockContainer) {
     }
 }
 
-// Add block creation function that adds a new block at a specific position
-function insertBlockAfter(referenceBlock, type, content = '') {
-    const newBlock = createBlockElement(type, content);
-    if (referenceBlock.nextSibling) {
-        editor.insertBefore(newBlock, referenceBlock.nextSibling);
-    } else {
+// Block menu functions
+export function showBlockMenu() {
+    const blockMenu = document.getElementById('block-menu');
+    if (blockMenu) {
+        blockMenu.classList.remove('hidden');
+    }
+}
+
+export function hideBlockMenu() {
+    const blockMenu = document.getElementById('block-menu');
+    if (blockMenu) {
+        blockMenu.classList.add('hidden');
+    }
+}
+
+export function addDatabaseBlock() {
+    // Add a database reference block to the editor
+    const newBlock = createBlockElement('database', 'Tasks');
+    const editor = document.getElementById('editor');
+    if (editor) {
         editor.appendChild(newBlock);
+    }
+    
+    // Show the sample database
+    const sampleDB = document.getElementById('sample-database');
+    if (sampleDB) {
+        sampleDB.style.display = 'block';
+    }
+}
+
+// Add block creation function that adds a new block at a specific position
+export function insertBlockAfter(referenceBlock, type, content = '') {
+    const newBlock = createBlockElement(type, content);
+    const editor = document.getElementById('editor');
+    
+    if (editor) {
+        if (referenceBlock.nextSibling) {
+            editor.insertBefore(newBlock, referenceBlock.nextSibling);
+        } else {
+            editor.appendChild(newBlock);
+        }
     }
     
     // Focus the new block's editable area

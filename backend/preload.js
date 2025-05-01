@@ -6,6 +6,13 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld(
   'foundryAPI',
   {
+    // Workspace API
+    listWorkspaces: () => ipcRenderer.invoke('list-workspaces'),
+    createWorkspace: (workspaceData) => ipcRenderer.invoke('create-workspace', workspaceData),
+    getWorkspace: (workspaceId) => ipcRenderer.invoke('get-workspace', workspaceId),
+    selectWorkspace: (workspaceId) => ipcRenderer.invoke('select-workspace', workspaceId),
+    getActiveWorkspace: () => ipcRenderer.invoke('get-active-workspace'),
+    
     // Data Storage API
     saveDocument: (docData) => ipcRenderer.invoke('save-document', docData),
     loadDocument: (docId) => ipcRenderer.invoke('load-document', docId),
@@ -21,6 +28,7 @@ contextBridge.exposeInMainWorld(
     createDatabase: (dbConfig) => ipcRenderer.invoke('create-database', dbConfig),
     updateDatabase: (dbId, dbConfig) => ipcRenderer.invoke('update-database', dbId, dbConfig),
     queryDatabase: (dbId, query) => ipcRenderer.invoke('query-database', dbId, query),
+    listDatabases: () => ipcRenderer.invoke('list-databases'),
     
     // Receive notifications from main process
     onDocumentChanged: (callback) => ipcRenderer.on('document-changed', (_, ...args) => callback(...args)),
