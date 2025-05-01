@@ -54,6 +54,21 @@ export function createNewDocument() {
             renderDocumentList();
             renderDocument(newDoc);
             
+            // Get editor element and ensure it's initialized
+            const editor = document.getElementById('editor');
+            if (editor) {
+                // Make sure page editor is initialized
+                initializePageEditor(editor);
+                
+                // Create at least one empty block if none exists
+                if (editor.children.length === 0) {
+                    import('./blocks.js').then(blocksModule => {
+                        const { addBlock } = blocksModule;
+                        addBlock('text', '');
+                    });
+                }
+            }
+            
             showNotification('New document created', 'success');
         })
         .catch(error => {
@@ -143,8 +158,49 @@ export function renderDocument(docData) {
 export function saveCurrentDocument(silent = false) {
     // Check if there's a current document
     if (!appState.currentDocument) {
-        if (!silent) showNotification('No document to save', 'error');
-        return;
+        // Check if we have content to save first
+        const editor = document.getElementById('editor');
+        const title = document.getElementById('document-title')?.textContent || 'Untitled';
+        
+        if (editor && editor.children.length > 0) {
+            // We have content to save but no current document - create one
+            const docId = 'doc_' + Date.now();
+            
+            // Create document object
+            const newDoc = {
+                id: docId,
+                title: title,
+                created: new Date().toISOString(),
+                updated: new Date().toISOString(),
+                content: getEditorContent(),
+                workspaceId: appState.currentWorkspace?.id
+            };
+            
+            // Set as current document first to prevent further issues
+            appState.currentDocument = newDoc;
+            
+            // Save to storage
+            saveDocument(newDoc, { silent })
+                .then(result => {
+                    // Add to app state
+                    appState.documentList.push(newDoc);
+                    
+                    // Update UI
+                    renderDocumentList();
+                    
+                    if (!silent) showNotification('Document saved', 'success');
+                })
+                .catch(error => {
+                    console.error('Error saving new document:', error);
+                    if (!silent) showNotification('Failed to save document', 'error');
+                });
+                
+            return;
+        } else {
+            // No content to save
+            if (!silent) showNotification('No document to save', 'error');
+            return;
+        }
     }
     
     // Get document title

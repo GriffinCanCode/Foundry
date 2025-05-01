@@ -221,7 +221,17 @@ export async function saveData(storeType, data, options = {}) {
     
     if (config.strategy === STORAGE_STRATEGY.BACKEND || config.strategy === STORAGE_STRATEGY.HYBRID) {
       // Save to backend
-      await saveToBackend(storeType, processedData);
+      const backendResult = await saveToBackend(storeType, processedData);
+      
+      // Check if we need to fall back to local storage
+      if (backendResult && backendResult.fallbackToLocal) {
+        // Already saved to local storage if we're in HYBRID mode
+        if (config.strategy === STORAGE_STRATEGY.BACKEND) {
+          // For BACKEND_ONLY strategy, we need to explicitly save to local as fallback
+          await saveToLocalStorage(storeType, processedData);
+          queueForSync(storeType, data.id);
+        }
+      }
     }
     
     // If using hybrid strategy, mark as synced in local storage
@@ -450,8 +460,16 @@ export async function listData(storeType, options = {}) {
 // Save data to backend
 async function saveToBackend(storeType, data) {
   try {
-    if (!window.foundryAPI) {
-      throw new Error('Backend API not available');
+    // Check if foundryAPI is available (more robust check)
+    if (typeof window.foundryAPI === 'undefined' || window.foundryAPI === null) {
+      // Instead of throwing an error, we'll return a structured response
+      // This allows the hybrid storage to function more gracefully
+      console.warn('Backend API not available, skipping backend save');
+      return {
+        success: false, 
+        error: 'Backend API not available',
+        fallbackToLocal: true
+      };
     }
     
     let result;

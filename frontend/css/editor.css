@@ -1,12 +1,88 @@
 /* Text Editor Component Styles */
 
+/* Additional Animations */
+@keyframes prismaticShimmer {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+@keyframes blockEntrance {
+    0% { 
+        opacity: 0; 
+        transform: translateY(10px) scale(0.96);
+        filter: blur(2px);
+    }
+    100% { 
+        opacity: 1; 
+        transform: translateY(0) scale(1);
+        filter: blur(0);
+    }
+}
+
+@keyframes blockTransform {
+    0% { 
+        transform: scale(0.97);
+        box-shadow: 0 0 0 rgba(14, 165, 233, 0);
+        background: rgba(255, 255, 255, 0.2);
+    }
+    50% { 
+        transform: scale(1.01);
+        box-shadow: 0 0 15px rgba(14, 165, 233, 0.2);
+        background: rgba(239, 246, 255, 0.6);
+    }
+    100% { 
+        transform: scale(1);
+        box-shadow: 0 5px 15px rgba(14, 165, 233, 0.08);
+        background: rgba(255, 255, 255, 0.25);
+    }
+}
+
+/* Apply animations to new and transformed blocks */
+.new-block {
+    animation: blockEntrance 0.4s var(--ease-out-expo) forwards;
+}
+
+.transform-block-animation {
+    animation: blockTransform 0.4s var(--ease-elastic) forwards;
+}
+
 /* Editor Container */
 #editor {
     min-height: 200px;
-    backdrop-filter: blur(4px);
-    background: rgba(255, 255, 255, 0.65);
+    backdrop-filter: blur(12px);
+    background: rgba(255, 255, 255, 0.25);
     border-radius: var(--border-radius-lg);
     transition: all 0.3s var(--ease-out-expo);
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 8px 32px rgba(31, 38, 135, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+#editor::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+        45deg, 
+        rgba(14, 165, 233, 0.05), 
+        rgba(255, 255, 255, 0.07), 
+        rgba(14, 165, 233, 0.05)
+    );
+    transform: rotate(30deg);
+    animation: prismaticShimmer 15s linear infinite;
+    background-size: 200% 200%;
+    pointer-events: none;
+    z-index: 0;
+}
+
+#editor > * {
+    position: relative;
+    z-index: 1;
 }
 
 .document-title {
@@ -39,7 +115,7 @@
 
 .document-title:focus {
     outline: none;
-    background-color: rgba(239, 246, 255, 0.4);
+    background-color: rgba(239, 246, 255, 0.2);
     border-radius: var(--border-radius-md);
     padding-left: 0.5rem;
     box-shadow: 0 0 20px rgba(14, 165, 233, 0.15);
@@ -60,15 +136,16 @@
     margin-bottom: 0.75rem;
     border-radius: var(--border-radius-md);
     transition: all 0.25s var(--ease-out-expo);
-    background: rgba(255, 255, 255, 0.25);
-    backdrop-filter: blur(3px);
-    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
 }
 
 .block-container:hover {
-    background-color: rgba(239, 246, 255, 0.4);
+    background-color: rgba(239, 246, 255, 0.25);
     transform: translateX(2px);
-    box-shadow: 0 5px 15px rgba(14, 165, 233, 0.08);
+    box-shadow: 0 5px 15px rgba(14, 165, 233, 0.1);
     border-left: 1px solid rgba(14, 165, 233, 0.2);
 }
 
@@ -87,10 +164,10 @@
     cursor: grab;
     opacity: 0;
     transition: all 0.25s var(--ease-out-expo);
-    background: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.3);
     backdrop-filter: blur(8px);
     border-radius: 50%;
-    border: 1px solid rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.3);
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
 }
 
@@ -100,7 +177,7 @@
 }
 
 .block-controls:hover {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(239, 246, 255, 0.8));
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.4), rgba(239, 246, 255, 0.3));
     color: var(--surface-900);
     box-shadow: 0 4px 12px rgba(14, 165, 233, 0.15);
     transform: translateY(-50%) scale(1.1);
@@ -129,10 +206,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.3);
     backdrop-filter: blur(8px);
     border-radius: 50%;
-    border: 1px solid rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.3);
     color: var(--surface-500);
     transition: all 0.2s var(--ease-out-expo);
     position: relative;
@@ -154,7 +231,7 @@
 }
 
 .block-option-btn:hover {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(239, 246, 255, 0.85));
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.4), rgba(239, 246, 255, 0.3));
     color: var(--primary-600);
     box-shadow: 0 4px 12px rgba(14, 165, 233, 0.15);
     transform: translateY(-1px);
@@ -194,13 +271,13 @@
     padding: 0.5rem 0.75rem;
     border-radius: var(--border-radius-sm);
     transition: all 0.25s var(--ease-out-expo);
-    background: rgba(255, 255, 255, 0.3);
-    backdrop-filter: blur(2px);
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(6px);
 }
 
 .editable-block:focus {
-    background-color: rgba(239, 246, 255, 0.6);
-    box-shadow: 0 0 0 2px rgba(186, 230, 253, 0.5), 0 4px 15px rgba(14, 165, 233, 0.08);
+    background-color: rgba(239, 246, 255, 0.25);
+    box-shadow: 0 0 0 2px rgba(186, 230, 253, 0.3), 0 4px 15px rgba(14, 165, 233, 0.08);
 }
 
 .editable-block:empty:before {
@@ -253,7 +330,7 @@
     position: relative;
     cursor: pointer;
     transition: all 0.25s var(--ease-elastic);
-    background: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.2);
     backdrop-filter: blur(4px);
 }
 
@@ -300,8 +377,8 @@
     border-image-slice: 1;
     font-style: italic;
     color: var(--surface-700);
-    background: rgba(239, 246, 255, 0.4);
-    backdrop-filter: blur(5px);
+    background: rgba(239, 246, 255, 0.2);
+    backdrop-filter: blur(8px);
     border-radius: 0 var(--border-radius-md) var(--border-radius-md) 0;
     margin: 1rem 0;
     position: relative;
@@ -312,7 +389,7 @@
 .quote-block:hover {
     transform: translateX(2px);
     box-shadow: 0 8px 20px rgba(14, 165, 233, 0.1);
-    background: rgba(239, 246, 255, 0.55);
+    background: rgba(239, 246, 255, 0.3);
 }
 
 .quote-block::before {
@@ -331,19 +408,19 @@
 
 /* Code Block */
 .code-block-container pre {
-    background: rgba(244, 245, 246, 0.8);
-    backdrop-filter: blur(6px);
+    background: rgba(244, 245, 246, 0.3);
+    backdrop-filter: blur(10px);
     border-radius: var(--border-radius-md);
     padding: 1.25rem;
     position: relative;
     overflow-x: auto;
-    border: 1px solid rgba(226, 232, 240, 0.6);
+    border: 1px solid rgba(226, 232, 240, 0.3);
     transition: box-shadow 0.3s var(--ease-out-expo);
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
 }
 
 .code-block-container pre:hover {
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(14, 165, 233, 0.1);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(14, 165, 233, 0.1);
 }
 
 .code-block-container pre::after {
@@ -377,27 +454,27 @@
     align-items: center;
     padding: 1rem;
     margin-top: 1.5rem;
-    border-top: 1px solid rgba(226, 232, 240, 0.4);
-    background: rgba(250, 250, 250, 0.4);
-    backdrop-filter: blur(8px);
+    border-top: 1px solid rgba(226, 232, 240, 0.15);
+    background: rgba(250, 250, 250, 0.15);
+    backdrop-filter: blur(12px);
     border-radius: 0 0 var(--border-radius-lg) var(--border-radius-lg);
     transition: background-color 0.3s var(--ease-out-expo);
     box-shadow: 0 -4px 15px rgba(14, 165, 233, 0.03);
 }
 
 .add-block-menu:hover {
-    background: rgba(239, 246, 255, 0.6);
+    background: rgba(239, 246, 255, 0.25);
 }
 
 /* Block Menu */
 #block-menu {
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(16px);
 }
 
 #block-menu .bg-white {
-    background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.7);
+    background: rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1), 0 0 20px rgba(14, 165, 233, 0.08);
     transition: transform 0.3s var(--ease-out-expo), box-shadow 0.3s var(--ease-out-expo);
 }
@@ -406,20 +483,22 @@
     transform: translateY(-2px);
     box-shadow: 0 15px 30px rgba(0, 0, 0, 0.12), 0 0 25px rgba(14, 165, 233, 0.1);
     border-bottom: 1px solid var(--primary-200);
+    background: rgba(255, 255, 255, 0.4);
 }
 
 /* Add styles for slash command menu */
 #slash-menu {
     position: absolute;
     z-index: 9999 !important;
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(16px);
     border-radius: 0.5rem;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1), 0 0 20px rgba(14, 165, 233, 0.05);
     width: 18rem;
     max-height: 400px;
     overflow-y: auto;
-    border: 1px solid rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    animation: blockEntrance 0.3s var(--ease-out-expo) forwards;
 }
 
 .slash-item {
@@ -428,6 +507,10 @@
     transition: all 0.2s;
     position: relative;
     overflow: hidden;
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(8px);
+    margin: 2px;
+    border-radius: 4px;
 }
 
 .slash-item::after {
@@ -443,7 +526,7 @@
 
 .slash-item:hover,
 .slash-item.active {
-    background: rgba(239, 246, 255, 0.7);
+    background: rgba(239, 246, 255, 0.4);
 }
 
 .slash-item:hover::after {
@@ -451,7 +534,7 @@
 }
 
 .slash-item.active {
-    background: rgba(224, 242, 254, 0.7);
+    background: rgba(224, 242, 254, 0.4);
 }
 
 /* Make sure the menu is visible over all other elements */
@@ -470,9 +553,9 @@
     font-weight: 500;
     transition: all 0.25s var(--ease-out-expo);
     color: var(--surface-700);
-    border: 1px solid rgba(226, 232, 240, 0.7);
-    background: rgba(255, 255, 255, 0.6);
-    backdrop-filter: blur(6px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(8px);
     position: relative;
     overflow: hidden;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
@@ -495,7 +578,7 @@
 }
 
 .add-block-button:hover {
-    background: rgba(239, 246, 255, 0.7);
+    background: rgba(239, 246, 255, 0.3);
     border-color: var(--primary-300);
     color: var(--primary-700);
     transform: translateY(-2px);
@@ -535,12 +618,12 @@
 
 /* Dark mode support */
 .dark-mode .block-container:hover {
-    background-color: rgba(63, 63, 70, 0.4);
+    background-color: rgba(63, 63, 70, 0.25);
 }
 
 .dark-mode .editable-block:focus {
-    background-color: rgba(63, 63, 70, 0.5);
-    box-shadow: 0 0 0 2px rgba(63, 63, 70, 0.5), 0 4px 15px rgba(0, 0, 0, 0.1);
+    background-color: rgba(63, 63, 70, 0.3);
+    box-shadow: 0 0 0 2px rgba(63, 63, 70, 0.3), 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 .dark-mode .document-title {
@@ -549,31 +632,40 @@
 }
 
 .dark-mode .document-title:focus {
-    background-color: rgba(63, 63, 70, 0.5);
+    background-color: rgba(63, 63, 70, 0.3);
     box-shadow: none;
 }
 
 .dark-mode .block-option-btn,
 .dark-mode .block-controls {
-    background: rgba(63, 63, 70, 0.5);
-    border-color: rgba(63, 63, 70, 0.7);
+    background: rgba(63, 63, 70, 0.3);
+    border-color: rgba(63, 63, 70, 0.4);
 }
 
 .dark-mode .block-option-btn:hover,
 .dark-mode .block-controls:hover {
-    background: linear-gradient(135deg, rgba(63, 63, 70, 0.7), rgba(39, 39, 42, 0.6));
+    background: linear-gradient(135deg, rgba(63, 63, 70, 0.4), rgba(39, 39, 42, 0.3));
 }
 
 .dark-mode .code-block-container pre {
-    background: rgba(39, 39, 42, 0.7);
-    border-color: rgba(63, 63, 70, 0.5);
+    background: rgba(39, 39, 42, 0.4);
+    border-color: rgba(63, 63, 70, 0.3);
 }
 
 .dark-mode #slash-menu,
 .dark-mode .add-block-menu,
 .dark-mode #block-menu .bg-white {
-    background: rgba(39, 39, 42, 0.85);
-    border-color: rgba(63, 63, 70, 0.5);
+    background: rgba(39, 39, 42, 0.4);
+    border-color: rgba(63, 63, 70, 0.3);
+}
+
+.dark-mode #editor::before {
+    background: linear-gradient(
+        45deg, 
+        rgba(14, 165, 233, 0.05), 
+        rgba(39, 39, 42, 0.1), 
+        rgba(14, 165, 233, 0.05)
+    );
 }
 
 /* Mobile responsiveness */
