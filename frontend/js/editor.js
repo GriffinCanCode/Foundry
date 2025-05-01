@@ -11,7 +11,10 @@ import {
     addBlock, 
     addDatabaseBlock,
     showBlockMenu,
-    hideBlockMenu
+    hideBlockMenu,
+    showSlashCommandMenu,
+    transformBlock,
+    insertBlockAfter
 } from './modules/blocks.js';
 import { 
     handleDragStart, 
@@ -32,6 +35,9 @@ window.handleDragOver = handleDragOver;
 window.handleDragLeave = handleDragLeave;
 window.handleDrop = handleDrop;
 window.handleDragEnd = handleDragEnd;
+window.showSlashCommandMenu = showSlashCommandMenu;
+window.transformBlock = transformBlock;
+window.insertBlockAfter = insertBlockAfter;
 
 console.warn('Using editor.js compatibility layer - consider updating your imports to use the modular structure directly');
 
@@ -373,6 +379,7 @@ function createBlockElement(type, content = '') {
             if (e.key === '/' && (editableElement.textContent.trim() === '' || 
                                  window.getSelection().anchorOffset === 0)) {
                 e.preventDefault();
+                // This calls the showSlashCommandMenu function imported from modules/blocks.js
                 showSlashCommandMenu(blockContainer);
             }
         });
@@ -435,49 +442,6 @@ function handleMarkdownShortcuts(e) {
             // Clear the markdown syntax
             element.textContent = '';
         }
-    }
-}
-
-// Transform a block from one type to another
-function transformBlock(blockContainer, newType) {
-    // Get the content from the current block
-    let content = '';
-    const currentType = blockContainer.classList.contains('todo-block-container') ? 'todo' :
-                      blockContainer.querySelector('.heading-block') ? 'heading' :
-                      blockContainer.querySelector('.list-block') ? 'list' :
-                      blockContainer.querySelector('.quote-block') ? 'quote' :
-                      blockContainer.querySelector('.code-block') ? 'code' : 'text';
-    
-    // Extract content based on the block type
-    if (currentType === 'todo') {
-        content = blockContainer.querySelector('.todo-text').textContent;
-    } else {
-        const editable = blockContainer.querySelector('[contenteditable=true]');
-        if (editable) content = editable.textContent;
-    }
-    
-    // Create a new block of the desired type
-    const newBlock = createBlockElement(newType, content);
-    
-    // Replace the old block with the new one
-    editor.replaceChild(newBlock, blockContainer);
-    
-    // Focus the new block
-    const newEditable = newBlock.querySelector('[contenteditable=true]');
-    if (newEditable) {
-        newEditable.focus();
-    }
-}
-
-// Function to add a new block to the editor
-function addBlock(type, content = '') {
-    const newBlock = createBlockElement(type, content);
-    editor.appendChild(newBlock);
-    // Focus the new block's editable area
-    const editable = newBlock.querySelector('[contenteditable=true]');
-    if (editable) {
-        // Small delay to ensure element is fully in DOM for focus
-        setTimeout(() => editable.focus(), 0);
     }
 }
 
@@ -898,230 +862,4 @@ function editBlock(blockContainer) {
             modal.remove();
         }, 300);
     }
-}
-
-// Slash command menu for enhanced block creation with improved styling
-function showSlashCommandMenu(blockContainer) {
-    // Position of the current block for menu placement
-    const rect = blockContainer.getBoundingClientRect();
-    
-    // Create menu HTML with improved styling
-    const menuHTML = `
-    <div id="slash-menu" class="absolute bg-white rounded-lg shadow-lg border border-surface-200 z-50 w-72 overflow-hidden opacity-0 transform scale-95 transition-all duration-200">
-        <div class="p-3">
-            <div class="relative">
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-surface-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                </div>
-                <input type="text" id="slash-search" class="w-full pl-10 px-3 py-2 border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500" placeholder="Search commands...">
-            </div>
-        </div>
-        <ul class="max-h-72 overflow-y-auto">
-            <li class="slash-item p-3 hover:bg-primary-50 cursor-pointer transition-colors" data-type="text">
-                <div class="flex items-center">
-                    <span class="w-8 h-8 mr-3 flex items-center justify-center rounded-lg bg-surface-100 text-surface-700">📝</span>
-                    <div>
-                        <div class="font-medium">Text</div>
-                        <div class="text-xs text-surface-500">Regular paragraph</div>
-                    </div>
-                </div>
-            </li>
-            <li class="slash-item p-3 hover:bg-primary-50 cursor-pointer transition-colors" data-type="heading">
-                <div class="flex items-center">
-                    <span class="w-8 h-8 mr-3 flex items-center justify-center rounded-lg bg-surface-100 text-surface-700">🔤</span>
-                    <div>
-                        <div class="font-medium">Heading</div>
-                        <div class="text-xs text-surface-500">Section heading</div>
-                    </div>
-                </div>
-            </li>
-            <li class="slash-item p-3 hover:bg-primary-50 cursor-pointer transition-colors" data-type="todo">
-                <div class="flex items-center">
-                    <span class="w-8 h-8 mr-3 flex items-center justify-center rounded-lg bg-surface-100 text-surface-700">✅</span>
-                    <div>
-                        <div class="font-medium">To-Do</div>
-                        <div class="text-xs text-surface-500">Task with checkbox</div>
-                    </div>
-                </div>
-            </li>
-            <li class="slash-item p-3 hover:bg-primary-50 cursor-pointer transition-colors" data-type="list">
-                <div class="flex items-center">
-                    <span class="w-8 h-8 mr-3 flex items-center justify-center rounded-lg bg-surface-100 text-surface-700">•</span>
-                    <div>
-                        <div class="font-medium">Bullet List</div>
-                        <div class="text-xs text-surface-500">Simple bulleted list</div>
-                    </div>
-                </div>
-            </li>
-            <li class="slash-item p-3 hover:bg-primary-50 cursor-pointer transition-colors" data-type="quote">
-                <div class="flex items-center">
-                    <span class="w-8 h-8 mr-3 flex items-center justify-center rounded-lg bg-surface-100 text-surface-700">💬</span>
-                    <div>
-                        <div class="font-medium">Quote</div>
-                        <div class="text-xs text-surface-500">Cited or quoted text</div>
-                    </div>
-                </div>
-            </li>
-            <li class="slash-item p-3 hover:bg-primary-50 cursor-pointer transition-colors" data-type="code">
-                <div class="flex items-center">
-                    <span class="w-8 h-8 mr-3 flex items-center justify-center rounded-lg bg-surface-100 text-surface-700">{ }</span>
-                    <div>
-                        <div class="font-medium">Code Block</div>
-                        <div class="text-xs text-surface-500">Technical code snippet</div>
-                    </div>
-                </div>
-            </li>
-            <li class="slash-item p-3 hover:bg-primary-50 cursor-pointer transition-colors" data-type="database">
-                <div class="flex items-center">
-                    <span class="w-8 h-8 mr-3 flex items-center justify-center rounded-lg bg-surface-100 text-surface-700">🗄️</span>
-                    <div>
-                        <div class="font-medium">Database</div>
-                        <div class="text-xs text-surface-500">Link to a database</div>
-                    </div>
-                </div>
-            </li>
-        </ul>
-    </div>
-    `;
-    
-    // Create and add the menu to the document
-    const menuContainer = document.createElement('div');
-    menuContainer.innerHTML = menuHTML;
-    const menu = menuContainer.firstElementChild;
-    document.body.appendChild(menu);
-    
-    // Position the menu below the current block
-    menu.style.top = `${rect.bottom + window.scrollY + 5}px`; // Adding 5px gap
-    menu.style.left = `${rect.left + window.scrollX}px`;
-    
-    // Animate in
-    setTimeout(() => {
-        menu.classList.remove('opacity-0', 'scale-95');
-        menu.classList.add('opacity-100', 'scale-100');
-    }, 10);
-    
-    // Focus the search input
-    const searchInput = document.getElementById('slash-search');
-    if (searchInput) {
-        searchInput.focus();
-        
-        // Filter items as user types
-        searchInput.addEventListener('input', () => {
-            const query = searchInput.value.toLowerCase();
-            const items = document.querySelectorAll('.slash-item');
-            
-            items.forEach(item => {
-                const text = item.textContent.toLowerCase();
-                if (text.includes(query)) {
-                    item.style.display = 'block';
-                } else {
-                    item.style.display = 'none';
-                }
-            });
-        });
-        
-        // Handle keyboard navigation
-        searchInput.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-                e.preventDefault();
-                
-                const items = Array.from(document.querySelectorAll('.slash-item')).filter(
-                    item => item.style.display !== 'none'
-                );
-                
-                if (items.length === 0) return;
-                
-                const activeItem = document.querySelector('.slash-item.active');
-                let nextItem;
-                
-                if (!activeItem) {
-                    // Select first or last item depending on arrow direction
-                    nextItem = e.key === 'ArrowDown' ? items[0] : items[items.length - 1];
-                } else {
-                    // Find current index
-                    const currentIndex = items.indexOf(activeItem);
-                    if (e.key === 'ArrowDown') {
-                        nextItem = currentIndex < items.length - 1 ? items[currentIndex + 1] : items[0];
-                    } else {
-                        nextItem = currentIndex > 0 ? items[currentIndex - 1] : items[items.length - 1];
-                    }
-                    
-                    activeItem.classList.remove('active', 'bg-primary-100');
-                }
-                
-                nextItem.classList.add('active', 'bg-primary-100');
-                nextItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-            } else if (e.key === 'Enter') {
-                e.preventDefault();
-                
-                const activeItem = document.querySelector('.slash-item.active');
-                if (activeItem) {
-                    // Select the active item
-                    const blockType = activeItem.getAttribute('data-type');
-                    selectBlockType(blockType, blockContainer);
-                }
-            } else if (e.key === 'Escape') {
-                e.preventDefault();
-                hideSlashMenu();
-            }
-        });
-    }
-    
-    // Add click handlers for items
-    document.querySelectorAll('.slash-item').forEach(item => {
-        item.addEventListener('click', () => {
-            const blockType = item.getAttribute('data-type');
-            selectBlockType(blockType, blockContainer);
-        });
-    });
-    
-    // Add global click handler to close the menu
-    document.addEventListener('click', handleOutsideClick);
-    
-    function handleOutsideClick(e) {
-        if (!menu.contains(e.target) && e.target !== blockContainer) {
-            hideSlashMenu();
-        }
-    }
-    
-    function hideSlashMenu() {
-        menu.classList.remove('opacity-100', 'scale-100');
-        menu.classList.add('opacity-0', 'scale-95');
-        
-        setTimeout(() => {
-            document.removeEventListener('click', handleOutsideClick);
-            menu.remove();
-        }, 200);
-    }
-    
-    function selectBlockType(type, container) {
-        if (type === 'database') {
-            addDatabaseBlock();
-        } else {
-            // Replace the current block with the new type or transform it
-            transformBlock(container, type);
-        }
-        
-        hideSlashMenu();
-    }
-}
-
-// Add block creation function that adds a new block at a specific position
-function insertBlockAfter(referenceBlock, type, content = '') {
-    const newBlock = createBlockElement(type, content);
-    if (referenceBlock.nextSibling) {
-        editor.insertBefore(newBlock, referenceBlock.nextSibling);
-    } else {
-        editor.appendChild(newBlock);
-    }
-    
-    // Focus the new block's editable area
-    const editable = newBlock.querySelector('[contenteditable=true]');
-    if (editable) {
-        setTimeout(() => editable.focus(), 0);
-    }
-    
-    return newBlock;
 } 

@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self'">
+    <title>Welcome to Foundry</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+    <script src="js/lucide.min.js"></script>
+    <link rel="stylesheet" href="css/styles.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        },
+                        surface: {
+                            50: '#fafafa',
+                            100: '#f4f4f5',
+                            200: '#e4e4e7',
+                            300: '#d4d4d8',
+                            400: '#a1a1aa',
+                            500: '#71717a',
+                            600: '#52525b',
+                            700: '#3f3f46',
+                            800: '#27272a',
+                            900: '#18181b',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        display: ['Poppins', 'system-ui', 'sans-serif']
+                    },
+                    boxShadow: {
+                        'card': '0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.1)',
+                        'card-hover': '0 4px 6px rgba(0,0,0,0.05), 0 10px 15px rgba(0,0,0,0.1)',
+                        'dropdown': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gradient-to-br from-primary-50 to-surface-100 text-surface-900 font-sans min-h-screen flex flex-col">
+    <header class="bg-white shadow-sm py-4">
+        <div class="container mx-auto px-4 md:px-6 flex items-center justify-between">
+            <div class="flex items-center">
+                <h1 class="text-2xl font-display font-bold text-primary-700">Foundry</h1>
+                <span class="ml-3 px-2 py-1 bg-primary-100 text-primary-700 text-xs rounded-full">Beta</span>
+            </div>
+            <div>
+                <button id="settings-btn" class="p-2 text-surface-500 hover:text-surface-700 rounded-md hover:bg-surface-100 transition-colors">
+                    <i data-lucide="settings" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 md:px-6 py-8 flex-grow">
+        <!-- Welcome Section -->
+        <section class="mb-12 text-center">
+            <h2 class="text-3xl md:text-4xl font-display font-bold mb-3 text-primary-800">Welcome to Foundry</h2>
+            <p class="text-surface-600 max-w-2xl mx-auto">Your personal workspace for notes, knowledge, and tasks.</p>
+        </section>
+
+        <!-- Quick Actions -->
+        <section class="mb-12">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-white shadow-card hover:shadow-card-hover rounded-xl p-6 transform transition-all duration-200 hover:-translate-y-1">
+                    <div class="mb-4 bg-primary-100 text-primary-600 p-3 rounded-lg inline-block">
+                        <i data-lucide="file-plus" class="w-6 h-6"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">New Document</h3>
+                    <p class="text-surface-600 mb-4">Start with a blank page.</p>
+                    <a href="index.html?skipLanding=true" class="text-primary-600 font-medium hover:text-primary-700 inline-flex items-center">
+                        Create New
+                        <i data-lucide="arrow-right" class="w-4 h-4 ml-1"></i>
+                    </a>
+                </div>
+
+                <div class="bg-white shadow-card hover:shadow-card-hover rounded-xl p-6 transform transition-all duration-200 hover:-translate-y-1">
+                    <div class="mb-4 bg-primary-100 text-primary-600 p-3 rounded-lg inline-block">
+                        <i data-lucide="layout-template" class="w-6 h-6"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">Templates</h3>
+                    <p class="text-surface-600 mb-4">Start with a pre-built template.</p>
+                    <a href="#" id="templates-link" class="text-primary-600 font-medium hover:text-primary-700 inline-flex items-center">
+                        Browse Templates
+                        <i data-lucide="arrow-right" class="w-4 h-4 ml-1"></i>
+                    </a>
+                </div>
+
+                <div class="bg-white shadow-card hover:shadow-card-hover rounded-xl p-6 transform transition-all duration-200 hover:-translate-y-1">
+                    <div class="mb-4 bg-primary-100 text-primary-600 p-3 rounded-lg inline-block">
+                        <i data-lucide="database" class="w-6 h-6"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold mb-2">Databases</h3>
+                    <p class="text-surface-600 mb-4">Create structured data.</p>
+                    <a href="index.html?create=database&skipLanding=true" class="text-primary-600 font-medium hover:text-primary-700 inline-flex items-center">
+                        Create Database
+                        <i data-lucide="arrow-right" class="w-4 h-4 ml-1"></i>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Recent Documents -->
+        <section class="mb-12">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-semibold">Recent Documents</h2>
+                <a href="index.html?view=all&skipLanding=true" class="text-primary-600 text-sm hover:text-primary-700 font-medium">View All</a>
+            </div>
+            <div class="bg-white shadow-card rounded-xl overflow-hidden">
+                <div id="recent-docs-list" class="divide-y divide-surface-200">
+                    <div class="p-4 text-center text-surface-500" id="no-recent-docs">
+                        No recent documents found
+                    </div>
+                    <!-- Recent documents will be populated here dynamically -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-white border-t border-surface-200 py-6 mt-auto">
+        <div class="container mx-auto px-4 md:px-6">
+            <div class="flex flex-col md:flex-row items-center justify-between">
+                <div class="text-center md:text-left mb-4 md:mb-0">
+                    <p class="text-sm text-surface-500">© 2025 Griffin. No rights reserved.</p>
+                </div>
+                <div class="flex space-x-4">
+                    <a href="#" class="text-surface-500 hover:text-primary-600 transition-colors">Help</a>
+                    <a href="#" class="text-surface-500 hover:text-primary-600 transition-colors">Privacy</a>
+                    <a href="#" class="text-surface-500 hover:text-primary-600 transition-colors">Terms</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Template Gallery Modal (Hidden by default) -->
+    <div id="templates-modal" class="fixed inset-0 bg-surface-900 bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-xl shadow-xl p-6 max-w-4xl w-full">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-display font-semibold text-surface-900">Template Gallery</h3>
+                <button id="close-templates-modal" class="p-2 rounded-lg hover:bg-surface-100 text-surface-500 hover:text-surface-700 transition-colors">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                <div class="border border-surface-200 rounded-lg overflow-hidden hover:border-primary-300 transition-colors">
+                    <div class="h-32 bg-surface-100 flex items-center justify-center">
+                        <i data-lucide="clipboard-list" class="w-10 h-10 text-surface-400"></i>
+                    </div>
+                    <div class="p-4">
+                        <h4 class="font-medium">Task Tracker</h4>
+                        <p class="text-sm text-surface-500 mb-3">Track your tasks and projects.</p>
+                        <a href="index.html?template=task-tracker&skipLanding=true" class="text-sm px-3 py-1.5 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors inline-block">
+                            Use Template
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="border border-surface-200 rounded-lg overflow-hidden hover:border-primary-300 transition-colors">
+                    <div class="h-32 bg-surface-100 flex items-center justify-center">
+                        <i data-lucide="book-open" class="w-10 h-10 text-surface-400"></i>
+                    </div>
+                    <div class="p-4">
+                        <h4 class="font-medium">Note Taking</h4>
+                        <p class="text-sm text-surface-500 mb-3">Structured notes with sections.</p>
+                        <a href="index.html?template=notes&skipLanding=true" class="text-sm px-3 py-1.5 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors inline-block">
+                            Use Template
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="border border-surface-200 rounded-lg overflow-hidden hover:border-primary-300 transition-colors">
+                    <div class="h-32 bg-surface-100 flex items-center justify-center">
+                        <i data-lucide="calendar" class="w-10 h-10 text-surface-400"></i>
+                    </div>
+                    <div class="p-4">
+                        <h4 class="font-medium">Weekly Planner</h4>
+                        <p class="text-sm text-surface-500 mb-3">Plan your week efficiently.</p>
+                        <a href="index.html?template=weekly-planner&skipLanding=true" class="text-sm px-3 py-1.5 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors inline-block">
+                            Use Template
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize Lucide icons
+            if (window.lucide) {
+                lucide.createIcons();
+            }
+            
+            // Template modal functionality
+            const templatesLink = document.getElementById('templates-link');
+            const templatesModal = document.getElementById('templates-modal');
+            const closeTemplatesModal = document.getElementById('close-templates-modal');
+            
+            if (templatesLink && templatesModal) {
+                templatesLink.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    templatesModal.classList.remove('hidden');
+                });
+            }
+            
+            if (closeTemplatesModal && templatesModal) {
+                closeTemplatesModal.addEventListener('click', function() {
+                    templatesModal.classList.add('hidden');
+                });
+            }
+            
+            // Settings button functionality
+            const settingsBtn = document.getElementById('settings-btn');
+            if (settingsBtn) {
+                settingsBtn.addEventListener('click', function() {
+                    window.location.href = 'index.html?settings=true&skipLanding=true';
+                });
+            }
+            
+            // Load recent documents from localStorage
+            loadRecentDocuments();
+            
+            // Function to load recent documents from localStorage
+            function loadRecentDocuments() {
+                const recentDocsList = document.getElementById('recent-docs-list');
+                const noRecentDocs = document.getElementById('no-recent-docs');
+                
+                try {
+                    // Get recent documents from localStorage
+                    const recentDocs = JSON.parse(localStorage.getItem('recentDocuments')) || [];
+                    
+                    if (recentDocs.length > 0) {
+                        // Clear the "no recent docs" message
+                        if (noRecentDocs) {
+                            noRecentDocs.style.display = 'none';
+                        }
+                        
+                        // Clear existing items (except the no-recent-docs element)
+                        while (recentDocsList.firstChild) {
+                            if (recentDocsList.firstChild.id !== 'no-recent-docs') {
+                                recentDocsList.removeChild(recentDocsList.firstChild);
+                            } else {
+                                break;
+                            }
+                        }
+                        
+                        // Add recent documents (limit to 5)
+                        recentDocs.slice(0, 5).forEach(function(doc) {
+                            const docEl = document.createElement('div');
+                            docEl.className = 'p-4 flex items-center hover:bg-surface-50 transition-colors';
+                            
+                            let dateText = 'Unknown date';
+                            if (doc.lastEdited) {
+                                const editDate = new Date(doc.lastEdited);
+                                const now = new Date();
+                                const diffDays = Math.floor((now - editDate) / (1000 * 60 * 60 * 24));
+                                
+                                if (diffDays === 0) {
+                                    dateText = 'Today';
+                                } else if (diffDays === 1) {
+                                    dateText = 'Yesterday';
+                                } else {
+                                    dateText = `${diffDays} days ago`;
+                                }
+                            }
+                            
+                            docEl.innerHTML = `
+                                <div class="mr-4 text-surface-400">
+                                    <i data-lucide="file-text" class="w-5 h-5"></i>
+                                </div>
+                                <div class="flex-grow">
+                                    <h3 class="font-medium">${doc.title || 'Untitled'}</h3>
+                                    <p class="text-sm text-surface-500">Last edited ${dateText}</p>
+                                </div>
+                                <div>
+                                    <button class="p-2 text-surface-400 hover:text-surface-700 rounded-md open-doc-menu" data-id="${doc.id}">
+                                        <i data-lucide="more-horizontal" class="w-5 h-5"></i>
+                                    </button>
+                                </div>
+                            `;
+                            
+                            recentDocsList.appendChild(docEl);
+                            
+                            // Add click event to open the document
+                            docEl.addEventListener('click', function(e) {
+                                // Ignore clicks on menu buttons
+                                if (e.target.closest('.open-doc-menu')) return;
+                                
+                                window.location.href = `index.html?docId=${doc.id}&skipLanding=true`;
+                            });
+                        });
+                        
+                        // Reinitialize icons for new elements
+                        if (window.lucide) {
+                            lucide.createIcons();
+                        }
+                    } else {
+                        // No recent documents
+                        if (noRecentDocs) {
+                            noRecentDocs.style.display = 'block';
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error loading recent documents:', error);
+                    // Show error message
+                    if (noRecentDocs) {
+                        noRecentDocs.textContent = 'Error loading recent documents';
+                        noRecentDocs.style.display = 'block';
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html> 

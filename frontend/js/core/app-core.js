@@ -21,12 +21,33 @@ export const appState = {
         autoSaveInterval: 30
     },
     autoSaveTimer: null,
-    appInitialized: false
+    appInitialized: false,
+    pendingAction: null
 };
 
 // Initialize the application
 export async function initializeApp() {
     console.log('Initializing app core...');
+    
+    // Check if we should show the landing page instead of the main app
+    // Skip landing page if 'skipLanding=true' or a specific action is requested
+    const urlParams = new URLSearchParams(window.location.search);
+    const skipLanding = urlParams.get('skipLanding') === 'true';
+    const hasAction = urlParams.has('create') || urlParams.has('load') || urlParams.has('view');
+    
+    if (!skipLanding && !hasAction && window.location.pathname.endsWith('index.html')) {
+        // Redirect to landing page if we're on index.html
+        window.location.href = 'landing.html';
+        return;
+    }
+    
+    // Process specific actions that might come from the landing page
+    if (urlParams.has('create') && urlParams.get('create') === 'database') {
+        // Will trigger database creation after app loads
+        appState.pendingAction = {
+            type: 'createDatabase'
+        };
+    }
     
     // Critical initialization tasks (required for immediate functionality)
     await loadSettings();
@@ -35,6 +56,11 @@ export async function initializeApp() {
     
     // Mark app as initialized
     appState.appInitialized = true;
+    
+    // Handle any pending actions
+    if (appState.pendingAction) {
+        processPendingAction(appState.pendingAction);
+    }
     
     // Non-critical tasks that can be deferred
     runWhenIdle(() => {
@@ -46,6 +72,22 @@ export async function initializeApp() {
         // Load additional features that aren't needed immediately
         loadNonCriticalFeatures();
     });
+}
+
+// Process any pending actions that were triggered from the landing page
+function processPendingAction(action) {
+    import('../modules/database.js').then(module => {
+        switch (action.type) {
+            case 'createDatabase':
+                module.createNewDatabase();
+                break;
+        }
+    }).catch(err => {
+        console.error('Failed to process pending action', err);
+    });
+    
+    // Clear the pending action
+    appState.pendingAction = null;
 }
 
 // Load features that aren't needed for immediate app functionality

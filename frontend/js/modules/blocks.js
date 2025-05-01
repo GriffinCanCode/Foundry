@@ -359,8 +359,12 @@ export function createBlockElement(type, content = '') {
             // Implement slash commands
             if (e.key === '/' && (editableElement.textContent.trim() === '' || 
                                  window.getSelection().anchorOffset === 0)) {
-                e.preventDefault();
-                showSlashCommandMenu(blockContainer);
+                // Block-level slash command is now handled globally in event-listeners.js
+                // This block-level handler is kept for backward compatibility
+                // but we'll let the event bubble up to be handled by the global listener
+                console.log('Block-level slash command detected, letting global handler process it');
+                // Don't call preventDefault() here to allow event to bubble up to global handler
+                // Don't call showSlashCommandMenu directly to avoid duplicate menus
             }
         });
     }
@@ -730,6 +734,12 @@ export function editBlock(blockContainer) {
 
 // Slash command menu for enhanced block creation
 export function showSlashCommandMenu(blockContainer) {
+    // Remove any existing slash menu first
+    const existingMenu = document.getElementById('slash-menu');
+    if (existingMenu) {
+        existingMenu.remove();
+    }
+    
     // Position of the current block for menu placement
     const rect = blockContainer.getBoundingClientRect();
     
@@ -820,9 +830,18 @@ export function showSlashCommandMenu(blockContainer) {
     const menu = menuContainer.firstElementChild;
     document.body.appendChild(menu);
     
-    // Position the menu below the current block
+    // Position the menu using fixed positioning to avoid scroll issues
+    menu.style.position = 'fixed';
     menu.style.top = `${rect.bottom + window.scrollY + 5}px`; // Adding 5px gap
     menu.style.left = `${rect.left + window.scrollX}px`;
+    menu.style.zIndex = '9999'; // Ensure high z-index
+    
+    // Check if menu would go off-screen and adjust if needed
+    const menuRect = menu.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    if (menuRect.right > viewportWidth) {
+        menu.style.left = `${viewportWidth - menuRect.width - 10}px`;
+    }
     
     // Animate in
     setTimeout(() => {
@@ -884,7 +903,19 @@ export function showSlashCommandMenu(blockContainer) {
             } else if (e.key === 'Enter') {
                 e.preventDefault();
                 
-                const activeItem = document.querySelector('.slash-item.active');
+                // First look for active item
+                let activeItem = document.querySelector('.slash-item.active');
+                
+                // If no active item, default to first visible item as fallback
+                if (!activeItem) {
+                    const visibleItems = Array.from(document.querySelectorAll('.slash-item')).filter(
+                        item => item.style.display !== 'none'
+                    );
+                    if (visibleItems.length > 0) {
+                        activeItem = visibleItems[0];
+                    }
+                }
+                
                 if (activeItem) {
                     // Select the active item
                     const blockType = activeItem.getAttribute('data-type');
@@ -909,8 +940,12 @@ export function showSlashCommandMenu(blockContainer) {
     document.addEventListener('click', handleOutsideClick);
     
     function handleOutsideClick(e) {
+        // Check if the click is outside both the menu and the block container
         if (!menu.contains(e.target) && e.target !== blockContainer) {
-            hideSlashMenu();
+            // Add small delay to prevent accidental closing
+            setTimeout(() => {
+                hideSlashMenu();
+            }, 50);
         }
     }
     

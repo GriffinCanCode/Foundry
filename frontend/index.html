@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self'">
-    <title>Foundry Concept: Modern Block Editor</title>
+    <title>Foundry Concept</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
     <script src="js/lucide.min.js"></script>
@@ -71,6 +71,11 @@
                     <i data-lucide="plus" class="w-4 h-4"></i>
                     <span>Create New Workspace</span>
                 </button>
+                
+                <a href="landing.html" class="text-primary-600 hover:text-primary-700 text-sm font-medium flex items-center">
+                    <i data-lucide="arrow-left" class="w-4 h-4 mr-1"></i>
+                    Back to Home
+                </a>
             </div>
         </div>
     </div>
@@ -93,6 +98,10 @@
                 <i data-lucide="briefcase" class="w-4 h-4"></i>
                 <span>Switch Workspace</span>
             </button>
+            <a href="landing.html" class="w-full px-4 py-2 border border-surface-300 bg-white text-surface-800 rounded-lg hover:bg-surface-100 flex items-center justify-center space-x-2 font-medium transition duration-200">
+                <i data-lucide="home" class="w-4 h-4"></i>
+                <span>Back to Home</span>
+            </a>
         </div>
         
         <nav class="p-4 pt-2">
@@ -143,6 +152,10 @@
                         <i data-lucide="download"></i>
                         <span>Export</span>
                     </button>
+                    <a href="landing.html" class="toolbar-button">
+                        <i data-lucide="home"></i>
+                        <span>Home</span>
+                    </a>
                 </div>
             </div>
             <div>
@@ -299,8 +312,16 @@
     <!-- Load scripts -->
     <script type="module" src="js/index.js"></script>
     <script>
-        // Add event listeners for block actions
+        // Parse URL parameters and set up document accordingly
         document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            // Check for template parameter
+            if (urlParams.has('template')) {
+                console.log('Loading template:', urlParams.get('template'));
+                // This would be replaced with actual template loading logic
+            }
+            
             // Import modules for UI interaction
             import('./js/modules/blocks.js').then(blocksModule => {
                 const { addBlock, showBlockMenu, hideBlockMenu, addDatabaseBlock } = blocksModule;
