@@ -6,6 +6,7 @@ import { appState } from '../core/app-core.js';
 import { closeModal } from '../utils/modals.js';
 import { showNotification } from '../utils/notifications.js';
 import { selectWorkspace } from './workspace.js';
+import { showSettingsDialog as showSettingsModal } from './settings.js';
 
 // Show dialog to create a new workspace
 export function showCreateWorkspaceDialog() {
@@ -211,98 +212,6 @@ export function showShareDialog() {
 // Show settings dialog
 export function showSettingsDialog() {
     console.log('Opening settings dialog');
-    
-    // Create modal for settings
-    const modalHTML = `
-    <div id="settings-modal" class="fixed inset-0 bg-surface-900 bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 opacity-0 transition-opacity duration-300">
-        <div class="bg-white rounded-xl shadow-xl p-6 max-w-md w-full transform transition-all duration-300 scale-95">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-xl font-display font-semibold text-surface-900">Settings</h3>
-                <button id="close-settings-modal" class="p-2 rounded-lg hover:bg-surface-100 text-surface-500 hover:text-surface-700 transition-colors">
-                    <i data-lucide="x"></i>
-                </button>
-            </div>
-            
-            <div class="space-y-6">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h4 class="font-medium text-surface-900">Dark Mode</h4>
-                        <p class="text-sm text-surface-500">Switch between light and dark theme</p>
-                    </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="dark-mode-toggle" ${appState.settings.darkMode ? 'checked' : ''}>
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h4 class="font-medium text-surface-900">Auto Save</h4>
-                        <p class="text-sm text-surface-500">Automatically save documents as you work</p>
-                    </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="auto-save-toggle" ${appState.settings.autoSave ? 'checked' : ''}>
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                
-                <div class="pt-2">
-                    <label class="block text-sm font-medium text-surface-700 mb-2">Auto Save Interval (seconds)</label>
-                    <input type="number" id="auto-save-interval" value="${appState.settings.autoSaveInterval}" min="5" max="300"
-                           class="w-full px-4 py-2.5 border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
-                </div>
-                
-                <div class="pt-3 flex justify-end">
-                    <button id="settings-save-btn" class="px-5 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium">
-                        Save Changes
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-    `;
-    
-    // Add modal to the body
-    const modalContainer = document.createElement('div');
-    modalContainer.innerHTML = modalHTML;
-    document.body.appendChild(modalContainer);
-    
-    const modal = document.getElementById('settings-modal');
-    
-    // Animate in
-    setTimeout(() => {
-        modal.classList.add('opacity-100');
-        const modalContent = modal.querySelector('div > div');
-        if (modalContent) modalContent.classList.add('scale-100');
-    }, 10);
-    
-    // Initialize icons
-    if (window.lucide) {
-        window.lucide.createIcons();
-    }
-    
-    // Add event listeners
-    document.getElementById('close-settings-modal').addEventListener('click', () => {
-        closeModal(modal);
-    });
-    
-    document.getElementById('settings-save-btn').addEventListener('click', () => {
-        const darkMode = document.getElementById('dark-mode-toggle').checked;
-        const autoSave = document.getElementById('auto-save-toggle').checked;
-        const autoSaveInterval = parseInt(document.getElementById('auto-save-interval').value, 10);
-        
-        // Update settings in appState
-        appState.settings.darkMode = darkMode;
-        appState.settings.autoSave = autoSave;
-        appState.settings.autoSaveInterval = autoSaveInterval;
-        
-        // Save settings
-        import('./settings.js').then(module => {
-            module.saveSettings();
-            module.applyTheme();
-        });
-        
-        showNotification('Settings saved', 'success');
-        closeModal(modal);
-    });
+    // Use the settings module implementation
+    showSettingsModal();
 } 

@@ -23,20 +23,22 @@ console.log('%c[INDEX] Script loading started', 'background: #0284c7; color: whi
 import { initializeApp, appState } from './core/app-core.js';
 import { setupEventListeners } from './core/event-listeners.js';
 import { toggleSidebar, debugSidebar, setupSidebarToggleFixed } from './modules/ui.js';
+import { showSettingsDialog } from './modules/settings.js';
 
 // Initialize app when document is ready
-function initialize() {
+async function initialize() {
     console.log('%c[INDEX] DOM fully loaded - initializing app', 'background: #0284c7; color: white; padding: 2px 4px; border-radius: 4px;');
     
     try {
         console.log('[INDEX] Initializing core app...');
-        initializeApp();
+        await initializeApp();
         
         console.log('[INDEX] Setting up event listeners...');
         setupEventListeners();
         
         // Make debug function available globally
         window.debugSidebar = debugSidebar;
+        window.showSettingsDialog = showSettingsDialog;
         console.log('[INDEX] Debug sidebar function attached to window object');
         
         // Set up the sidebar toggle buttons using the proper UI module functions
@@ -63,7 +65,7 @@ function initialize() {
 // Use both DOMContentLoaded and window.onload to ensure everything is loaded
 if (document.readyState === 'loading') {
     console.log('[INDEX] Document still loading, waiting for DOMContentLoaded event');
-    document.addEventListener('DOMContentLoaded', initialize);
+    document.addEventListener('DOMContentLoaded', () => initialize());
 } else {
     console.log('[INDEX] Document already loaded, initializing immediately');
     initialize();
@@ -86,31 +88,5 @@ window.onload = function() {
     console.log('[INDEX] Running sidebar diagnostics after window load...');
     if (window.debugSidebar) {
         window.debugSidebar();
-    }
-    
-    // Create a special button to activate sidebar toggle for testing
-    console.log('[INDEX] Creating emergency sidebar toggle button for testing...');
-    const emergencyBtn = document.createElement('button');
-    emergencyBtn.textContent = "Emergency Toggle Sidebar";
-    emergencyBtn.style.position = "fixed";
-    emergencyBtn.style.bottom = "10px";
-    emergencyBtn.style.right = "10px";
-    emergencyBtn.style.zIndex = "9999";
-    emergencyBtn.style.padding = "10px";
-    emergencyBtn.style.backgroundColor = "#0284c7";
-    emergencyBtn.style.color = "white";
-    emergencyBtn.style.borderRadius = "4px";
-    emergencyBtn.style.border = "none";
-    emergencyBtn.style.cursor = "pointer";
-    
-    emergencyBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        console.log('[INDEX] Emergency sidebar toggle clicked');
-        toggleSidebar();
-    });
-    
-    // Only add the emergency button in debug mode
-    if (document.querySelector('.sidebar')) {
-        document.body.appendChild(emergencyBtn);
     }
 }; 

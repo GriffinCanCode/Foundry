@@ -22,6 +22,31 @@ if (!fs.existsSync(docsDir)) {
   fs.mkdirSync(docsDir, { recursive: true });
 }
 
+// Settings directory and file
+const settingsDir = path.join(dataDir, 'settings');
+if (!fs.existsSync(settingsDir)) {
+  fs.mkdirSync(settingsDir, { recursive: true });
+}
+
+// Default settings
+const defaultSettings = {
+  darkMode: false,
+  autoSave: true,
+  autoSaveInterval: 30,
+  lastUpdated: new Date().toISOString()
+};
+
+// Settings file path
+const settingsFilePath = path.join(settingsDir, 'app-settings.json');
+
+// Create default settings file if it doesn't exist
+if (!fs.existsSync(settingsFilePath)) {
+  fs.writeFileSync(
+    settingsFilePath,
+    JSON.stringify(defaultSettings, null, 2)
+  );
+}
+
 // Workspaces directory
 const workspacesDir = path.join(dataDir, 'workspaces');
 if (!fs.existsSync(workspacesDir)) {
@@ -532,6 +557,36 @@ function setupIpcHandlers() {
       };
     } catch (error) {
       console.error('Error querying database:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Settings handlers
+  ipcMain.handle('load-settings', async () => {
+    try {
+      const data = await fs.promises.readFile(settingsFilePath, 'utf8');
+      return { success: true, settings: JSON.parse(data) };
+    } catch (error) {
+      console.error('Error loading settings:', error);
+      return { success: false, error: error.message, settings: defaultSettings };
+    }
+  });
+
+  ipcMain.handle('save-settings', async (event, settings) => {
+    try {
+      const updatedSettings = {
+        ...settings,
+        lastUpdated: new Date().toISOString()
+      };
+      
+      await fs.promises.writeFile(
+        settingsFilePath, 
+        JSON.stringify(updatedSettings, null, 2)
+      );
+      
+      return { success: true, settings: updatedSettings };
+    } catch (error) {
+      console.error('Error saving settings:', error);
       return { success: false, error: error.message };
     }
   });

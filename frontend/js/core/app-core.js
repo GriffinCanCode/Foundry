@@ -24,9 +24,9 @@ export const appState = {
 };
 
 // Initialize the application
-export function initializeApp() {
+export async function initializeApp() {
     // Load settings
-    loadSettings();
+    await loadSettings();
     
     // Initialize UI components
     initializeUI();

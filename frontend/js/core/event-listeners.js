@@ -6,7 +6,8 @@ import { appState } from './app-core.js';
 import { toggleSidebar } from '../modules/ui.js';
 import { saveCurrentDocument, createNewDocument, exportCurrentDocument } from '../modules/document.js';
 import { showWorkspaceSelection } from '../modules/workspace.js';
-import { showShareDialog, showSettingsDialog } from '../modules/dialogs.js';
+import { showShareDialog } from '../modules/dialogs.js';
+import { showSettingsDialog } from '../modules/settings.js';
 import { hideBlockMenu } from '../modules/blocks.js';
 import { createNewDatabase } from '../modules/database.js';
 

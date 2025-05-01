@@ -19,6 +19,10 @@ contextBridge.exposeInMainWorld(
     listDocuments: () => ipcRenderer.invoke('list-documents'),
     deleteDocument: (docId) => ipcRenderer.invoke('delete-document', docId),
     
+    // Settings API
+    loadSettings: () => ipcRenderer.invoke('load-settings'),
+    saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),
+    
     // Block-related APIs
     createBlock: (blockData) => ipcRenderer.invoke('create-block', blockData),
     updateBlock: (blockId, blockData) => ipcRenderer.invoke('update-block', blockId, blockData),
