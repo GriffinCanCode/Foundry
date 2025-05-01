@@ -263,47 +263,46 @@ export function renderDocumentList() {
     });
 }
 
-// Render the database list in the sidebar
+// Render the workplaces list in the sidebar
 export function renderDatabaseList() {
-    const dbList = document.getElementById('databases-list');
-    if (!dbList) return;
+    const workplacesList = document.getElementById('workplaces-list');
+    if (!workplacesList) return;
     
     // Clear existing list
-    dbList.innerHTML = '';
+    workplacesList.innerHTML = '';
     
-    // Add each database to the list
-    if (appState.databaseList.length === 0) {
-        dbList.innerHTML = '<div class="py-2 px-3 text-surface-500 text-sm">No databases yet</div>';
+    // Add each workplace to the list
+    if (appState.workspaceList.length === 0) {
+        workplacesList.innerHTML = '<div class="py-2 px-3 text-surface-500 text-sm">No workplaces yet</div>';
         return;
     }
     
-    appState.databaseList.forEach(db => {
+    appState.workspaceList.forEach(workspace => {
         const li = document.createElement('li');
         li.innerHTML = `
-            <a href="#" class="flex items-center p-2 rounded-md hover:bg-surface-100" data-db-id="${db.id}">
+            <a href="#" class="flex items-center p-2 rounded-md hover:bg-surface-100" data-workspace-id="${workspace.id}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" 
                      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
                      class="w-4 h-4 mr-2 text-surface-500">
-                  <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
-                  <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
-                  <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                  <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
                 </svg>
-                <span>${db.name}</span>
+                <span>${workspace.name}</span>
             </a>
         `;
         
-        // Add click handler to view database
+        // Add click handler to select workspace
         li.querySelector('a').addEventListener('click', (e) => {
             e.preventDefault();
-            import('./database.js').then(module => {
-                module.viewDatabase(db.id);
+            import('./workspace.js').then(module => {
+                module.selectWorkspace(workspace.id);
             });
         });
         
-        dbList.appendChild(li);
+        workplacesList.appendChild(li);
     });
     
-    // NOTE: Event listener for new-database-btn is now managed in event-listeners.js
+    // NOTE: Event listener for manage-workplaces-btn is now managed in event-listeners.js
     // to prevent duplicate event handlers and ensure consistent behavior
 }
 
@@ -323,8 +322,11 @@ export function completeWorkspaceSelection() {
             innerContent.classList.add('scale-95');
         }
         
+        // Use a proper cleanup function
         setTimeout(() => {
-            workspaceScreen.style.display = 'none';
+            if (workspaceScreen.parentNode) {
+                workspaceScreen.parentNode.removeChild(workspaceScreen);
+            }
         }, 300);
     }
     
@@ -341,15 +343,62 @@ export function completeWorkspaceSelection() {
     }
     
     // Update UI to reflect current workspace
-    const titleEl = document.querySelector('.foundry-title');
-    if (titleEl) {
-        titleEl.textContent = appState.currentWorkspace.name;
-    }
+    updateWorkspaceUI();
     
     // Show sidebar on desktop
     showSidebar();
     
     // Responsive sidebar toggle based on screen size
+    handleResponsiveSidebar(mainContent);
+}
+
+/**
+ * Update UI elements to reflect the current workspace
+ */
+function updateWorkspaceUI() {
+    if (!appState.currentWorkspace) return;
+    
+    // Update title element
+    const titleEl = document.querySelector('.foundry-title');
+    if (titleEl) {
+        titleEl.textContent = appState.currentWorkspace.name;
+    }
+    
+    // Update workspace switcher button to show the active workspace
+    const workspaceSwitcher = document.getElementById('workspace-switcher');
+    if (workspaceSwitcher) {
+        // Reset any active styles
+        workspaceSwitcher.classList.remove('active-button');
+        
+        // Add a span with the workspace name if it doesn't exist
+        let nameSpan = workspaceSwitcher.querySelector('.workspace-name');
+        if (!nameSpan) {
+            // Find the existing span (generic "Switch Workspace" text)
+            const existingSpan = workspaceSwitcher.querySelector('span');
+            if (existingSpan) {
+                // Update its content and add a class for styling
+                existingSpan.innerHTML = `<span class="workspace-name">${appState.currentWorkspace.name}</span>`;
+            }
+        } else {
+            // Just update the existing workspace name
+            nameSpan.textContent = appState.currentWorkspace.name;
+        }
+        
+        // Visual feedback that workspace has been switched
+        setTimeout(() => {
+            workspaceSwitcher.classList.add('workspace-updated');
+            setTimeout(() => {
+                workspaceSwitcher.classList.remove('workspace-updated');
+            }, 1000);
+        }, 300);
+    }
+}
+
+/**
+ * Handle responsive sidebar behavior based on screen size
+ * @param {HTMLElement} mainContent - The main content element
+ */
+function handleResponsiveSidebar(mainContent) {
     if (window.innerWidth < 768) {
         const sidebar = document.querySelector('.sidebar');
         if (sidebar) {

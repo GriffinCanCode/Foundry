@@ -118,8 +118,8 @@ export async function selectWorkspace(id) {
 export function showWorkspaceSelection() {
   // Create the workspace selection screen HTML
   const workspaceHTML = `
-  <div id="workspace-selection" class="fixed inset-0 bg-white z-50 flex items-center justify-center opacity-100 transition-opacity duration-300">
-      <div class="max-w-xl w-full px-6 py-8 transform transition-all duration-300 scale-100">
+  <div id="workspace-selection" class="fixed inset-0 bg-white z-50 flex items-center justify-center opacity-0 transition-opacity duration-300">
+      <div class="max-w-xl w-full px-6 py-8 transform transition-all duration-300 scale-95">
           <h1 class="text-3xl font-display font-bold text-surface-900 mb-6">Select Workspace</h1>
           
           <div class="space-y-4 mb-8" id="workspace-list">
@@ -137,27 +137,145 @@ export function showWorkspaceSelection() {
   </div>
   `;
   
+  // First, check if there's a transition in progress and wait for it to complete
+  const existingWorkspaceSelection = document.getElementById('workspace-selection');
+  if (existingWorkspaceSelection) {
+    // If there's already a visible selection screen, just make sure events are bound
+    if (existingWorkspaceSelection.classList.contains('opacity-100')) {
+      setupWorkspaceSelectionEvents();
+      return;
+    }
+    
+    // Otherwise, remove the existing one before creating a new one
+    document.body.removeChild(existingWorkspaceSelection);
+  }
+  
   // Add to body
   const workspaceContainer = document.createElement('div');
   workspaceContainer.innerHTML = workspaceHTML;
-  document.body.appendChild(workspaceContainer.firstChild);
+  const selectionElement = workspaceContainer.firstChild;
+  document.body.appendChild(selectionElement);
   
   // Initialize icons
   if (window.lucide) {
-      lucide.createIcons();
+    lucide.createIcons();
   }
   
-  // Add event listeners
-  document.querySelectorAll('.workspace-item').forEach(item => {
-      item.addEventListener('click', () => {
-          const id = item.getAttribute('data-id');
-          if (id) selectWorkspace(id);
+  // Set up event handlers
+  setupWorkspaceSelectionEvents();
+  
+  // Trigger animation to fade in 
+  setTimeout(() => {
+    const selection = document.getElementById('workspace-selection');
+    if (selection) {
+      selection.classList.add('opacity-100');
+      const innerContent = selection.querySelector('div');
+      if (innerContent) {
+        innerContent.classList.add('scale-100');
+        innerContent.classList.remove('scale-95');
+      }
+    }
+  }, 10);
+}
+
+/**
+ * Set up event handlers for the workspace selection screen
+ */
+function setupWorkspaceSelectionEvents() {
+  // Ensure we have the workspace selection element
+  const workspaceSelection = document.getElementById('workspace-selection');
+  if (!workspaceSelection) return;
+  
+  // Define reusable handlers
+  // Using function declaration instead of arrow function to ensure 'this' refers to the clicked element
+  function workspaceItemHandler(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Provide visual feedback
+    this.classList.add('bg-surface-200');
+    
+    // Get workspace ID
+    const id = this.getAttribute('data-id');
+    if (!id) return;
+    
+    // Add loading state
+    const loadingIndicator = document.createElement('div');
+    loadingIndicator.className = 'absolute inset-0 bg-white bg-opacity-60 flex items-center justify-center';
+    loadingIndicator.innerHTML = '<div class="animate-pulse text-primary-600">Loading...</div>';
+    this.style.position = 'relative';
+    this.appendChild(loadingIndicator);
+    
+    // Select workspace with slight delay to show loading state
+    setTimeout(() => {
+      selectWorkspace(id).catch(err => {
+        console.error('Error selecting workspace:', err);
+        this.classList.remove('bg-surface-200');
+        this.removeChild(loadingIndicator);
+        showNotification('Failed to switch to workspace', 'error');
       });
+    }, 150);
+  }
+  
+  // Define handler for create workspace button
+  function createWorkspaceHandler(e) {
+    e.preventDefault();
+    
+    // Add visual feedback
+    this.classList.add('bg-primary-100');
+    setTimeout(() => {
+      this.classList.remove('bg-primary-100');
+    }, 300);
+    
+    showCreateWorkspaceDialog();
+  }
+  
+  // Clean up existing handlers by attaching with delegation
+  // This avoids issues with stale handlers
+  workspaceSelection.addEventListener('click', function(e) {
+    // Handle workspace item clicks
+    if (e.target.closest('.workspace-item')) {
+      const workspaceItem = e.target.closest('.workspace-item');
+      workspaceItemHandler.call(workspaceItem, e);
+    }
+    
+    // Handle create workspace button click
+    if (e.target.closest('#create-workspace-btn')) {
+      const createBtn = e.target.closest('#create-workspace-btn');
+      createWorkspaceHandler.call(createBtn, e);
+    }
   });
   
-  document.getElementById('create-workspace-btn').addEventListener('click', () => {
-      showCreateWorkspaceDialog();
-  });
+  // Also allow closing the workspace selection with ESC key
+  function escKeyHandler(e) {
+    if (e.key === 'Escape') {
+      const selection = document.getElementById('workspace-selection');
+      if (selection) {
+        // Animate out
+        selection.classList.remove('opacity-100');
+        selection.classList.add('opacity-0');
+        const innerContent = selection.querySelector('div');
+        if (innerContent) {
+          innerContent.classList.remove('scale-100');
+          innerContent.classList.add('scale-95');
+        }
+        
+        // Remove after animation
+        setTimeout(() => {
+          if (selection.parentNode) {
+            selection.parentNode.removeChild(selection);
+          }
+        }, 300);
+        
+        // Remove this event listener
+        document.removeEventListener('keydown', escKeyHandler);
+      }
+    }
+  }
+  
+  // Add ESC key handler
+  document.removeEventListener('keydown', escKeyHandler);
+  document.addEventListener('keydown', escKeyHandler);
 }
 
 // Render workspace list items
@@ -196,6 +314,13 @@ export async function loadWorkspaces() {
     
     // Update app state
     appState.workspaceList = workspaces;
+    
+    // Update the UI to show workspaces in the sidebar
+    import('../modules/ui.js').then(module => {
+      module.renderDatabaseList();
+    }).catch(err => {
+      console.error('Error rendering workspace list:', err);
+    });
     
     return workspaces;
   } catch (error) {

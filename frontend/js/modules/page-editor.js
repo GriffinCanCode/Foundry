@@ -15,6 +15,12 @@ let currentEditor = null;
 let blockIdCounter = 0;
 let isEditorInitialized = false;
 
+// Named handler functions for easier removal
+const prismaticEffectHandler = createPrismaticEffect;
+const scrollEffectHandler = handleScrollEffects;
+const keydownHandler = handleKeyboardShortcuts;
+const animationEndHandler = handleAnimationEnd;
+
 /**
  * Initialize the page editor
  * @param {HTMLElement} editorElement - The editor container element
@@ -24,6 +30,9 @@ export function initializePageEditor(editorElement) {
         console.error('Editor element not found');
         return;
     }
+    
+    // Clean up existing listeners if editor was previously initialized
+    cleanupEventListeners();
     
     currentEditor = editorElement;
     isEditorInitialized = true;
@@ -56,6 +65,26 @@ export function initializePageEditor(editorElement) {
 }
 
 /**
+ * Clean up event listeners when needed
+ */
+function cleanupEventListeners() {
+    if (currentEditor) {
+        currentEditor.removeEventListener('animationend', animationEndHandler);
+        currentEditor.removeEventListener('mousemove', prismaticEffectHandler);
+        window.removeEventListener('scroll', scrollEffectHandler);
+        document.removeEventListener('keydown', keydownHandler);
+        
+        // Remove autosave listeners
+        if (currentEditor._autoSaveInputHandler) {
+            currentEditor.removeEventListener('input', currentEditor._autoSaveInputHandler);
+        }
+        if (currentEditor._autoSaveBlurHandler) {
+            currentEditor.removeEventListener('blur', currentEditor._autoSaveBlurHandler);
+        }
+    }
+}
+
+/**
  * Apply glass effect to editor and its elements
  * @param {HTMLElement} editor - The editor container element
  */
@@ -63,12 +92,10 @@ function applyGlassEffect(editor) {
     // Add subtle shadow to enhance glass effect
     editor.style.boxShadow = '0 8px 32px rgba(14, 165, 233, 0.1)';
     
-    // Add subtle animation to blocks on creation
-    editor.addEventListener('animationend', (e) => {
-        if (e.target.classList.contains('block-container') && e.target.classList.contains('new-block')) {
-            e.target.classList.remove('new-block');
-        }
-    });
+    // Remove any existing listener before adding new one
+    editor.removeEventListener('animationend', animationEndHandler);
+    // Add animation end handler
+    editor.addEventListener('animationend', animationEndHandler);
     
     // Add glass effect to existing blocks
     const existingBlocks = editor.querySelectorAll('.block-container');
@@ -76,8 +103,20 @@ function applyGlassEffect(editor) {
         enhanceBlockWithGlassEffect(block);
     });
     
+    // Remove any existing mousemove listener before adding new one
+    editor.removeEventListener('mousemove', prismaticEffectHandler);
     // Add prismatic light effect to the editor on mouse move
-    editor.addEventListener('mousemove', createPrismaticEffect);
+    editor.addEventListener('mousemove', prismaticEffectHandler);
+}
+
+/**
+ * Handle animation end events
+ * @param {AnimationEvent} e - Animation end event
+ */
+function handleAnimationEnd(e) {
+    if (e.target.classList.contains('block-container') && e.target.classList.contains('new-block')) {
+        e.target.classList.remove('new-block');
+    }
 }
 
 /**
@@ -132,43 +171,60 @@ function enhanceBlockWithGlassEffect(block) {
 function setupScrollEffects() {
     if (!currentEditor) return;
     
+    // Remove any existing scroll listener before adding new one
+    window.removeEventListener('scroll', scrollEffectHandler);
     // Add scroll-based effects 
-    window.addEventListener('scroll', () => {
-        if (!currentEditor) return;
+    window.addEventListener('scroll', scrollEffectHandler, { passive: true });
+}
+
+/**
+ * Handle scroll effects for blocks
+ */
+function handleScrollEffects() {
+    if (!currentEditor) return;
+    
+    const scrollTop = window.scrollY;
+    const blocks = currentEditor.querySelectorAll('.block-container');
+    
+    blocks.forEach((block, index) => {
+        const rect = block.getBoundingClientRect();
+        const offsetTop = rect.top + scrollTop;
         
-        const scrollTop = window.scrollY;
-        const blocks = currentEditor.querySelectorAll('.block-container');
+        // Skip if block is not in viewport
+        if (offsetTop > scrollTop + window.innerHeight || offsetTop + rect.height < scrollTop) {
+            return;
+        }
         
-        blocks.forEach((block, index) => {
-            const rect = block.getBoundingClientRect();
-            const offsetTop = rect.top + scrollTop;
-            
-            // Skip if block is not in viewport
-            if (offsetTop > scrollTop + window.innerHeight || offsetTop + rect.height < scrollTop) {
-                return;
-            }
-            
-            // Calculate how far the block is from the center of the viewport
-            const viewportCenter = scrollTop + window.innerHeight / 2;
-            const blockCenter = offsetTop + rect.height / 2;
-            const distanceFromCenter = Math.abs(viewportCenter - blockCenter);
-            const maxDistance = window.innerHeight / 2;
-            const distanceRatio = 1 - Math.min(distanceFromCenter / maxDistance, 1);
-            
-            // Apply subtle scale and opacity based on position
-            const scale = 0.98 + (distanceRatio * 0.02);
-            const opacity = 0.85 + (distanceRatio * 0.15);
-            
-            block.style.transform = `scale(${scale})`;
-            block.style.opacity = opacity;
-        });
-    }, { passive: true });
+        // Calculate how far the block is from the center of the viewport
+        const viewportCenter = scrollTop + window.innerHeight / 2;
+        const blockCenter = offsetTop + rect.height / 2;
+        const distanceFromCenter = Math.abs(viewportCenter - blockCenter);
+        const maxDistance = window.innerHeight / 2;
+        const distanceRatio = 1 - Math.min(distanceFromCenter / maxDistance, 1);
+        
+        // Apply subtle scale and opacity based on position
+        const scale = 0.98 + (distanceRatio * 0.02);
+        const opacity = 0.85 + (distanceRatio * 0.15);
+        
+        block.style.transform = `scale(${scale})`;
+        block.style.opacity = opacity;
+    });
 }
 
 /**
  * Setup autosave functionality
  */
 function setupAutoSave() {
+    if (!currentEditor) return;
+    
+    // Remove any existing listeners
+    if (currentEditor._autoSaveInputHandler) {
+        currentEditor.removeEventListener('input', currentEditor._autoSaveInputHandler);
+    }
+    if (currentEditor._autoSaveBlurHandler) {
+        currentEditor.removeEventListener('blur', currentEditor._autoSaveBlurHandler);
+    }
+    
     // Debounced save function
     let saveTimeout = null;
     const debouncedSave = () => {
@@ -178,42 +234,53 @@ function setupAutoSave() {
         }, 2000); // 2 second debounce
     };
     
+    // Store references to handlers for future cleanup
+    currentEditor._autoSaveInputHandler = debouncedSave;
+    currentEditor._autoSaveBlurHandler = () => {
+        if (saveTimeout) {
+            clearTimeout(saveTimeout);
+            saveCurrentDocument(true);
+        }
+    };
+    
     // Listen for content changes
-    if (currentEditor) {
-        currentEditor.addEventListener('input', debouncedSave);
-        currentEditor.addEventListener('blur', () => {
-            if (saveTimeout) {
-                clearTimeout(saveTimeout);
-                saveCurrentDocument(true);
-            }
-        });
-    }
+    currentEditor.addEventListener('input', currentEditor._autoSaveInputHandler);
+    currentEditor.addEventListener('blur', currentEditor._autoSaveBlurHandler);
 }
 
 /**
  * Setup keyboard shortcuts for the editor
  */
 function setupKeyboardShortcuts() {
-    document.addEventListener('keydown', (e) => {
-        // Only process if editor is initialized and focused
-        if (!isEditorInitialized || !isEditorFocused()) return;
-        
-        // Save shortcut: Ctrl/Cmd + S
-        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-            e.preventDefault();
-            saveCurrentDocument();
-            showNotification('Document saved', 'success');
-        }
-        
-        // New block shortcut: Ctrl/Cmd + Enter
-        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-            e.preventDefault();
-            addBlock('text');
-        }
-        
-        // Handle markdown shortcuts
-        handleMarkdownShortcuts(e);
-    });
+    // Remove any existing keydown listener before adding new one
+    document.removeEventListener('keydown', keydownHandler);
+    // Add keyboard shortcut handler
+    document.addEventListener('keydown', keydownHandler);
+}
+
+/**
+ * Handle keyboard shortcuts
+ * @param {KeyboardEvent} e - The keyboard event
+ */
+function handleKeyboardShortcuts(e) {
+    // Only process if editor is initialized and focused
+    if (!isEditorInitialized || !isEditorFocused()) return;
+    
+    // Save shortcut: Ctrl/Cmd + S
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        saveCurrentDocument();
+        showNotification('Document saved', 'success');
+    }
+    
+    // New block shortcut: Ctrl/Cmd + Enter
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        addBlock('text');
+    }
+    
+    // Handle markdown shortcuts
+    handleMarkdownShortcuts(e);
 }
 
 /**
@@ -415,6 +482,15 @@ export function getEditorContent() {
     });
     
     return content;
+}
+
+/**
+ * Clean up resources when editor is destroyed
+ */
+export function destroyPageEditor() {
+    cleanupEventListeners();
+    currentEditor = null;
+    isEditorInitialized = false;
 }
 
 // Re-export block functions for convenience

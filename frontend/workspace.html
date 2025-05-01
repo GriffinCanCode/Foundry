@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self'">
+    <title>Workspaces - Foundry</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+    <script src="js/lucide.min.js"></script>
+    <link rel="stylesheet" href="css/styles.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        },
+                        surface: {
+                            50: '#fafafa',
+                            100: '#f4f4f5',
+                            200: '#e4e4e7',
+                            300: '#d4d4d8',
+                            400: '#a1a1aa',
+                            500: '#71717a',
+                            600: '#52525b',
+                            700: '#3f3f46',
+                            800: '#27272a',
+                            900: '#18181b',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        display: ['Poppins', 'system-ui', 'sans-serif']
+                    },
+                    boxShadow: {
+                        'card': '0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.1)',
+                        'card-hover': '0 4px 6px rgba(0,0,0,0.05), 0 10px 15px rgba(0,0,0,0.1)',
+                        'dropdown': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gradient-to-br from-primary-50 to-surface-100 text-surface-900 font-sans min-h-screen flex flex-col">
+    <header class="bg-white shadow-sm py-4">
+        <div class="container mx-auto px-4 md:px-6 flex items-center justify-between">
+            <div class="flex items-center">
+                <a href="landing.html" class="flex items-center">
+                    <h1 class="text-2xl font-display font-bold text-primary-700">Foundry</h1>
+                    <span class="ml-3 px-2 py-1 bg-primary-100 text-primary-700 text-xs rounded-full">Beta</span>
+                </a>
+            </div>
+            <div class="flex items-center">
+                <a href="index.html?skipLanding=true" class="mr-4 text-surface-500 hover:text-surface-700">
+                    <i data-lucide="home" class="w-5 h-5"></i>
+                </a>
+                <button id="settings-btn" class="p-2 text-surface-500 hover:text-surface-700 rounded-md hover:bg-surface-100 transition-colors">
+                    <i data-lucide="settings" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 md:px-6 py-8 flex-grow">
+        <section class="mb-8">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-3xl font-display font-bold text-primary-800">Your Workspaces</h2>
+                <button id="create-workspace-btn" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors flex items-center">
+                    <i data-lucide="plus" class="w-5 h-5 mr-2"></i>
+                    Create Workspace
+                </button>
+            </div>
+            
+            <div id="workspace-list-container" class="space-y-4">
+                <div id="workspace-loading" class="text-center py-8">
+                    <div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary-600"></div>
+                    <p class="mt-2 text-surface-500">Loading workspaces...</p>
+                </div>
+                <div id="workspace-list" class="hidden"></div>
+                <div id="no-workspaces" class="hidden py-12 text-center">
+                    <div class="text-surface-400 mb-4">
+                        <i data-lucide="briefcase" class="w-16 h-16 mx-auto"></i>
+                    </div>
+                    <h3 class="text-xl font-medium mb-2">No workspaces found</h3>
+                    <p class="text-surface-500 mb-6">Create your first workspace to get started</p>
+                    <button class="create-workspace-btn px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+                        Create Workspace
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-white border-t border-surface-200 py-6 mt-auto">
+        <div class="container mx-auto px-4 md:px-6">
+            <div class="flex flex-col md:flex-row items-center justify-between">
+                <div class="text-center md:text-left mb-4 md:mb-0">
+                    <p class="text-sm text-surface-500">© 2025 Griffin. No rights reserved.</p>
+                </div>
+                <div class="flex space-x-4">
+                    <a href="#" class="text-surface-500 hover:text-primary-600 transition-colors">Help</a>
+                    <a href="#" class="text-surface-500 hover:text-primary-600 transition-colors">Privacy</a>
+                    <a href="#" class="text-surface-500 hover:text-primary-600 transition-colors">Terms</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Create Workspace Modal -->
+    <div id="create-workspace-modal" class="fixed inset-0 bg-surface-900 bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-xl shadow-xl p-6 max-w-md w-full">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-display font-semibold text-surface-900">Create Workspace</h3>
+                <button id="close-workspace-modal" class="p-2 rounded-lg hover:bg-surface-100 text-surface-500 hover:text-surface-700 transition-colors">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            
+            <form id="create-workspace-form">
+                <div class="mb-4">
+                    <label for="workspace-name" class="block text-surface-700 mb-2">Workspace Name</label>
+                    <input type="text" id="workspace-name" class="w-full px-3 py-2 border border-surface-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="My Workspace" required>
+                </div>
+                
+                <div class="mb-6">
+                    <label for="workspace-description" class="block text-surface-700 mb-2">Description (Optional)</label>
+                    <textarea id="workspace-description" class="w-full px-3 py-2 border border-surface-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent" rows="3" placeholder="What's this workspace for?"></textarea>
+                </div>
+                
+                <div class="flex justify-end">
+                    <button type="button" id="cancel-workspace-create" class="px-4 py-2 mr-2 border border-surface-300 text-surface-700 rounded-lg hover:bg-surface-100 transition-colors">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">Create Workspace</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script type="module">
+        import { appState } from './js/core/app-core.js';
+        import { 
+            loadWorkspaces, 
+            createWorkspace, 
+            selectWorkspace 
+        } from './js/modules/workspace.js';
+        import { showNotification } from './js/utils/notifications.js';
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Initialize Lucide icons
+            if (window.lucide) {
+                lucide.createIcons();
+            }
+            
+            // Initialize event listeners
+            const createWorkspaceBtn = document.getElementById('create-workspace-btn');
+            const createWorkspaceBtnAlt = document.querySelector('.create-workspace-btn');
+            const createWorkspaceModal = document.getElementById('create-workspace-modal');
+            const closeWorkspaceModal = document.getElementById('close-workspace-modal');
+            const cancelWorkspaceCreate = document.getElementById('cancel-workspace-create');
+            const createWorkspaceForm = document.getElementById('create-workspace-form');
+            const settingsBtn = document.getElementById('settings-btn');
+            
+            // Set up event listeners
+            if (createWorkspaceBtn) {
+                createWorkspaceBtn.addEventListener('click', openCreateWorkspaceModal);
+            }
+            
+            if (createWorkspaceBtnAlt) {
+                createWorkspaceBtnAlt.addEventListener('click', openCreateWorkspaceModal);
+            }
+            
+            if (closeWorkspaceModal) {
+                closeWorkspaceModal.addEventListener('click', closeCreateWorkspaceModal);
+            }
+            
+            if (cancelWorkspaceCreate) {
+                cancelWorkspaceCreate.addEventListener('click', closeCreateWorkspaceModal);
+            }
+            
+            if (createWorkspaceForm) {
+                createWorkspaceForm.addEventListener('submit', handleCreateWorkspace);
+            }
+            
+            if (settingsBtn) {
+                settingsBtn.addEventListener('click', function() {
+                    window.location.href = 'index.html?settings=true&skipLanding=true';
+                });
+            }
+            
+            // Load workspaces
+            try {
+                await loadWorkspaces();
+                renderWorkspaceList();
+            } catch (error) {
+                console.error('Error loading workspaces:', error);
+                showNotification('Failed to load workspaces', 'error');
+            }
+            
+            // Functions
+            function openCreateWorkspaceModal() {
+                if (createWorkspaceModal) {
+                    createWorkspaceModal.classList.remove('hidden');
+                    // Focus on name input
+                    document.getElementById('workspace-name').focus();
+                }
+            }
+            
+            function closeCreateWorkspaceModal() {
+                if (createWorkspaceModal) {
+                    createWorkspaceModal.classList.add('hidden');
+                    // Reset form
+                    createWorkspaceForm.reset();
+                }
+            }
+            
+            async function handleCreateWorkspace(e) {
+                e.preventDefault();
+                
+                const nameInput = document.getElementById('workspace-name');
+                const descriptionInput = document.getElementById('workspace-description');
+                
+                if (!nameInput.value.trim()) {
+                    showNotification('Workspace name is required', 'error');
+                    return;
+                }
+                
+                try {
+                    // Show loading state
+                    const submitBtn = createWorkspaceForm.querySelector('button[type="submit"]');
+                    const originalText = submitBtn.innerHTML;
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<div class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div> Creating...';
+                    
+                    // Create workspace
+                    await createWorkspace(nameInput.value.trim(), descriptionInput.value.trim());
+                    
+                    // Close modal
+                    closeCreateWorkspaceModal();
+                    
+                    // Refresh workspace list
+                    renderWorkspaceList();
+                    
+                    showNotification('Workspace created successfully', 'success');
+                } catch (error) {
+                    console.error('Error creating workspace:', error);
+                    showNotification('Failed to create workspace', 'error');
+                } finally {
+                    // Reset button state
+                    const submitBtn = createWorkspaceForm.querySelector('button[type="submit"]');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
+            }
+            
+            function renderWorkspaceList() {
+                const workspaceList = document.getElementById('workspace-list');
+                const noWorkspaces = document.getElementById('no-workspaces');
+                const workspaceLoading = document.getElementById('workspace-loading');
+                
+                // Hide loading
+                if (workspaceLoading) {
+                    workspaceLoading.classList.add('hidden');
+                }
+                
+                if (!workspaceList) return;
+                
+                // Check if we have workspaces
+                if (appState.workspaceList && appState.workspaceList.length > 0) {
+                    workspaceList.classList.remove('hidden');
+                    if (noWorkspaces) {
+                        noWorkspaces.classList.add('hidden');
+                    }
+                    
+                    // Clear existing items
+                    workspaceList.innerHTML = '';
+                    
+                    // Sort workspaces by last accessed (if available) or created date
+                    const sortedWorkspaces = [...appState.workspaceList].sort((a, b) => {
+                        const dateA = a.lastAccessed ? new Date(a.lastAccessed) : new Date(a.created);
+                        const dateB = b.lastAccessed ? new Date(b.lastAccessed) : new Date(b.created);
+                        return dateB - dateA; // Most recent first
+                    });
+                    
+                    // Render each workspace
+                    sortedWorkspaces.forEach(workspace => {
+                        const isActive = appState.currentWorkspace && appState.currentWorkspace.id === workspace.id;
+                        
+                        const workspaceEl = document.createElement('div');
+                        workspaceEl.className = `workspace-item p-4 rounded-lg transition-all duration-200 ${isActive ? 'bg-primary-50 border border-primary-200' : 'bg-white shadow-card hover:shadow-card-hover'}`;
+                        workspaceEl.setAttribute('data-id', workspace.id);
+                        
+                        let lastAccessedText = '';
+                        if (workspace.lastAccessed) {
+                            const accessDate = new Date(workspace.lastAccessed);
+                            const now = new Date();
+                            const diffDays = Math.floor((now - accessDate) / (1000 * 60 * 60 * 24));
+                            
+                            if (diffDays === 0) {
+                                lastAccessedText = 'Today';
+                            } else if (diffDays === 1) {
+                                lastAccessedText = 'Yesterday';
+                            } else {
+                                lastAccessedText = `${diffDays} days ago`;
+                            }
+                        } else {
+                            lastAccessedText = 'Never';
+                        }
+                        
+                        workspaceEl.innerHTML = `
+                            <div class="flex items-center">
+                                <div class="p-2 rounded-lg ${isActive ? 'bg-primary-100 text-primary-600' : 'bg-surface-100 text-surface-500'}">
+                                    <i data-lucide="briefcase" class="w-5 h-5"></i>
+                                </div>
+                                <div class="ml-3 flex-grow">
+                                    <h3 class="font-medium">${workspace.name}</h3>
+                                    ${workspace.description ? `<p class="text-sm text-surface-500">${workspace.description}</p>` : ''}
+                                </div>
+                                <div class="ml-4 text-right text-xs text-surface-400">
+                                    ${isActive ? '<span class="text-primary-600 font-medium">Current</span>' : ''}
+                                    <div>Last accessed: ${lastAccessedText}</div>
+                                </div>
+                            </div>
+                        `;
+                        
+                        workspaceList.appendChild(workspaceEl);
+                        
+                        // Add click event to select workspace
+                        workspaceEl.addEventListener('click', async () => {
+                            if (isActive) return; // Already active
+                            
+                            try {
+                                // Add loading state
+                                workspaceEl.classList.add('opacity-50', 'pointer-events-none');
+                                
+                                // Select workspace
+                                await selectWorkspace(workspace.id);
+                                
+                                // Redirect to main app
+                                window.location.href = 'index.html?skipLanding=true';
+                            } catch (error) {
+                                console.error('Error selecting workspace:', error);
+                                workspaceEl.classList.remove('opacity-50', 'pointer-events-none');
+                                showNotification('Failed to select workspace', 'error');
+                            }
+                        });
+                    });
+                    
+                    // Reinitialize icons
+                    if (window.lucide) {
+                        lucide.createIcons();
+                    }
+                } else {
+                    // No workspaces
+                    workspaceList.classList.add('hidden');
+                    if (noWorkspaces) {
+                        noWorkspaces.classList.remove('hidden');
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html> 

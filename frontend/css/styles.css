@@ -636,13 +636,13 @@ input:focus + .toggle-slider {
 }
 
 #pages-list li a,
-#databases-list li a {
+#workplaces-list li a {
     transition: all 0.25s var(--ease-out-expo);
     position: relative;
 }
 
 #pages-list li a::before,
-#databases-list li a::before {
+#workplaces-list li a::before {
     content: '';
     position: absolute;
     left: 0;
@@ -657,14 +657,14 @@ input:focus + .toggle-slider {
 }
 
 #pages-list li a:hover,
-#databases-list li a:hover {
+#workplaces-list li a:hover {
     background-color: transparent;
     color: var(--primary-800);
     transform: translateX(4px);
 }
 
 #pages-list li a:hover::before,
-#databases-list li a:hover::before {
+#workplaces-list li a:hover::before {
     width: 100%;
     opacity: 1;
 }
@@ -868,4 +868,42 @@ table tr:hover td {
         max-width: 90%;
         margin: 0 1rem;
     }
+}
+
+/* Add active button state for visual feedback */
+.active-button {
+    transform: scale(0.97);
+    box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.3);
+    background-color: var(--surface-100);
+}
+
+/* Add smooth transition to workspace switcher button */
+#workspace-switcher {
+    transition: all 0.15s ease-in-out;
+}
+
+/* Add styles for workspace switcher feedback */
+.workspace-updated {
+    background-color: var(--primary-100) !important;
+    box-shadow: 0 0 0 2px var(--primary-200) !important;
+    color: var(--primary-800) !important;
+    animation: pulse-ring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) forwards;
+}
+
+@keyframes pulse-ring {
+    0% {
+        box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 6px rgba(14, 165, 233, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(14, 165, 233, 0);
+    }
+}
+
+/* Style for the workspace name inside the button */
+.workspace-name {
+    font-weight: 500;
+    color: var(--primary-700);
 } 

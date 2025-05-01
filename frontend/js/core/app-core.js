@@ -42,11 +42,19 @@ export async function initializeApp() {
     }
     
     // Process specific actions that might come from the landing page
-    if (urlParams.has('create') && urlParams.get('create') === 'database') {
-        // Will trigger database creation after app loads
-        appState.pendingAction = {
-            type: 'createDatabase'
-        };
+    if (urlParams.has('create')) {
+        const createAction = urlParams.get('create');
+        if (createAction === 'database') {
+            // Will trigger database creation after app loads
+            appState.pendingAction = {
+                type: 'createDatabase'
+            };
+        } else if (createAction === 'workplace') {
+            // Will trigger workplace selection after app loads
+            appState.pendingAction = {
+                type: 'showWorkplaceSelection'
+            };
+        }
     }
     
     // Critical initialization tasks (required for immediate functionality)
@@ -76,15 +84,22 @@ export async function initializeApp() {
 
 // Process any pending actions that were triggered from the landing page
 function processPendingAction(action) {
-    import('../modules/database.js').then(module => {
-        switch (action.type) {
-            case 'createDatabase':
+    switch (action.type) {
+        case 'createDatabase':
+            import('../modules/database.js').then(module => {
                 module.createNewDatabase();
-                break;
-        }
-    }).catch(err => {
-        console.error('Failed to process pending action', err);
-    });
+            }).catch(err => {
+                console.error('Failed to create database', err);
+            });
+            break;
+        case 'showWorkplaceSelection':
+            import('../modules/workspace.js').then(module => {
+                module.showWorkspaceSelection();
+            }).catch(err => {
+                console.error('Failed to show workplace selection', err);
+            });
+            break;
+    }
     
     // Clear the pending action
     appState.pendingAction = null;
