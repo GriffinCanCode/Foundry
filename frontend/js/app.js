@@ -43,12 +43,17 @@ import {
     addBlock,
     addDatabaseBlock
 } from './modules/blocks.js';
+import { initializeOptimizerIntegration } from './utils/optimizer-integration.js';
 
 // Initialize the application when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM loaded, initializing app via compatibility layer...');
     initializeApp();
     setupEventListeners();
+    
+    // Initialize performance optimizations
+    initializeOptimizerIntegration();
+    console.log('Performance optimizations initialized');
 });
 
 // Re-export all the functions for backward compatibility

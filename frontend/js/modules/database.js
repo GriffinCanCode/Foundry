@@ -6,6 +6,7 @@ import { appState } from '../core/app-core.js';
 import { renderDatabaseList } from './ui.js';
 import { showNotification } from '../utils/notifications.js';
 import { closeModal } from '../utils/modals.js';
+import { memoize, Cache } from '../utils/optimizer.js';
 
 // Sample table data to simulate database functionality
 const sampleTableData = {
@@ -26,6 +27,9 @@ const sampleTableData = {
     ]
 };
 
+// Cache for database data
+const databaseCache = new Cache(10);
+
 // View a database
 export function viewDatabase(id) {
     // Find database in state
@@ -41,221 +45,109 @@ export function viewDatabase(id) {
 
 // Create a new database
 export function createNewDatabase() {
-    // Show dialog to create a new database
-    showCreateDatabaseDialog();
-}
-
-// Show dialog to create a new database
-function showCreateDatabaseDialog() {
-    // Create modal for creating a database
-    const modalHTML = `
-    <div id="create-database-modal" class="fixed inset-0 bg-surface-900 bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 opacity-0 transition-opacity duration-300">
-        <div class="bg-white rounded-xl shadow-xl p-6 max-w-md w-full transform transition-all duration-300 scale-95">
+    console.log('Creating new database...');
+    
+    // Show database creation modal
+    const modal = document.createElement('div');
+    modal.id = 'database-modal';
+    modal.className = 'modal fixed inset-0 bg-surface-900 bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 opacity-0 transition-opacity duration-300';
+    
+    modal.innerHTML = `
+        <div class="modal-content bg-white rounded-xl shadow-xl p-6 w-full max-w-lg transform transition-all duration-300 scale-95">
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-xl font-display font-semibold text-surface-900">Create New Database</h3>
                 <button id="close-database-modal" class="p-2 rounded-lg hover:bg-surface-100 text-surface-500 hover:text-surface-700 transition-colors">
-                    <i data-lucide="x"></i>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
                 </button>
             </div>
             
             <div class="space-y-5">
                 <div>
                     <label class="block text-sm font-medium text-surface-700 mb-2">Database Name</label>
-                    <input type="text" id="database-name" 
-                           class="w-full px-4 py-2.5 border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors" 
-                           placeholder="My Database">
+                    <input id="database-name" type="text" class="w-full px-4 py-2.5 border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500" placeholder="Enter database name">
                 </div>
                 
                 <div>
-                    <label class="block text-sm font-medium text-surface-700 mb-2">Database Type</label>
-                    <select id="database-type" 
-                            class="w-full px-4 py-2.5 border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors bg-white">
-                        <option value="tasks">Tasks</option>
-                        <option value="people">People</option>
-                        <option value="notes">Notes</option>
-                        <option value="custom">Custom</option>
+                    <label class="block text-sm font-medium text-surface-700 mb-2">Type</label>
+                    <select id="database-type" class="w-full px-4 py-2.5 border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white">
+                        <option value="table">Table</option>
+                        <option value="list">List</option>
+                        <option value="kanban">Kanban Board</option>
+                        <option value="calendar">Calendar</option>
                     </select>
                 </div>
                 
-                <div id="custom-fields-container" class="hidden">
-                    <label class="block text-sm font-medium text-surface-700 mb-2">Custom Fields</label>
-                    <div class="space-y-2" id="custom-fields">
-                        <div class="flex space-x-2">
-                            <input type="text" placeholder="Field Name" 
-                                   class="flex-grow px-4 py-2.5 border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
-                            <select class="w-40 px-4 py-2.5 border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white">
-                                <option value="text">Text</option>
-                                <option value="number">Number</option>
-                                <option value="date">Date</option>
-                                <option value="boolean">Yes/No</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <button id="add-field-btn" class="mt-2 px-3 py-1.5 text-sm bg-surface-100 text-surface-700 rounded-md hover:bg-surface-200 transition-colors flex items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1">
-                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                            <line x1="5" y1="12" x2="19" y2="12"></line>
-                        </svg>
-                        Add Field
-                    </button>
-                </div>
-                
                 <div class="pt-4 flex justify-end space-x-3">
-                    <button id="database-cancel-btn" class="px-4 py-2.5 bg-surface-100 text-surface-700 rounded-lg hover:bg-surface-200 transition-colors">
+                    <button id="cancel-database-btn" class="px-4 py-2.5 bg-surface-100 text-surface-700 rounded-lg hover:bg-surface-200 transition-colors">
                         Cancel
                     </button>
-                    <button id="database-create-btn" class="px-4 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
-                        Create
+                    <button id="create-database-btn" class="px-4 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">
+                        Create Database
                     </button>
                 </div>
             </div>
         </div>
-    </div>
     `;
     
-    // Add modal to the body
-    const modalContainer = document.createElement('div');
-    modalContainer.innerHTML = modalHTML;
-    document.body.appendChild(modalContainer);
+    document.body.appendChild(modal);
     
-    const modal = document.getElementById('create-database-modal');
-    
-    // Animate in
+    // Fade in animation
     setTimeout(() => {
         modal.classList.add('opacity-100');
-        const modalContent = modal.querySelector('div > div');
-        if (modalContent) modalContent.classList.add('scale-100');
+        modal.querySelector('.modal-content').classList.add('scale-100');
     }, 10);
-    
-    // Initialize icons
-    if (window.lucide) {
-        lucide.createIcons();
-    }
     
     // Add event listeners
     document.getElementById('close-database-modal').addEventListener('click', () => {
         closeModal(modal);
     });
     
-    document.getElementById('database-cancel-btn').addEventListener('click', () => {
+    document.getElementById('cancel-database-btn').addEventListener('click', () => {
         closeModal(modal);
     });
     
-    // Show/hide custom fields based on selected type
-    document.getElementById('database-type').addEventListener('change', (e) => {
-        const customFieldsContainer = document.getElementById('custom-fields-container');
-        if (e.target.value === 'custom') {
-            customFieldsContainer.classList.remove('hidden');
-        } else {
-            customFieldsContainer.classList.add('hidden');
-        }
-    });
-    
-    // Add field button
-    document.getElementById('add-field-btn')?.addEventListener('click', () => {
-        const customFields = document.getElementById('custom-fields');
-        if (customFields) {
-            const fieldRow = document.createElement('div');
-            fieldRow.className = 'flex space-x-2';
-            fieldRow.innerHTML = `
-                <input type="text" placeholder="Field Name" 
-                       class="flex-grow px-4 py-2.5 border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500">
-                <select class="w-40 px-4 py-2.5 border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white">
-                    <option value="text">Text</option>
-                    <option value="number">Number</option>
-                    <option value="date">Date</option>
-                    <option value="boolean">Yes/No</option>
-                </select>
-                <button class="remove-field-btn p-2 text-surface-400 hover:text-red-500">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                </button>
-            `;
-            
-            // Add remove button handler
-            fieldRow.querySelector('.remove-field-btn').addEventListener('click', () => {
-                fieldRow.remove();
-            });
-            
-            customFields.appendChild(fieldRow);
-        }
-    });
-    
-    document.getElementById('database-create-btn').addEventListener('click', () => {
-        const databaseName = document.getElementById('database-name').value.trim();
-        if (!databaseName) {
-            // Animate the input to show error
-            const input = document.getElementById('database-name');
-            input.classList.add('border-red-500', 'ring-2', 'ring-red-200');
-            setTimeout(() => {
-                input.classList.remove('border-red-500', 'ring-2', 'ring-red-200');
-            }, 1000);
+    document.getElementById('create-database-btn').addEventListener('click', () => {
+        const name = document.getElementById('database-name').value.trim();
+        const type = document.getElementById('database-type').value;
+        
+        if (!name) {
+            showNotification('Please enter a database name', 'error');
             return;
         }
         
-        const databaseType = document.getElementById('database-type').value;
-        
-        // Generate unique ID (in production, this would be from the server)
-        const dbId = 'db_' + Date.now();
-        
-        // Create database object
-        const newDatabase = {
-            id: dbId,
-            name: databaseName,
-            type: databaseType,
-            tables: {},
+        // Create database
+        const databaseId = 'db_' + Date.now();
+        const database = {
+            id: databaseId,
+            name: name,
+            type: type,
             created: new Date().toISOString(),
-            updated: new Date().toISOString(),
-            workspaceId: appState.currentWorkspace?.id
+            lastUpdated: new Date().toISOString(),
+            columns: getDefaultColumns(type),
+            rows: []
         };
         
-        // If using a pre-defined type, set up sample data
-        if (databaseType !== 'custom' && sampleTableData[databaseType]) {
-            newDatabase.tables[databaseType] = [...sampleTableData[databaseType]];
-        } else if (databaseType === 'custom') {
-            // Create custom table structure based on field definitions
-            const customFields = [];
-            document.querySelectorAll('#custom-fields .flex').forEach(fieldRow => {
-                const fieldName = fieldRow.querySelector('input').value.trim();
-                const fieldType = fieldRow.querySelector('select').value;
-                
-                if (fieldName) {
-                    customFields.push({ name: fieldName, type: fieldType });
-                }
-            });
-            
-            // Set up empty custom table if fields are defined
-            if (customFields.length > 0) {
-                newDatabase.schema = customFields;
-                newDatabase.tables.custom = [];
-            }
-        }
+        // Store database in local storage
+        const databases = JSON.parse(localStorage.getItem('databases') || '{}');
+        databases[databaseId] = database;
+        localStorage.setItem('databases', JSON.stringify(databases));
         
-        // Add to app state
-        appState.databaseList.push(newDatabase);
+        // Clear cache for this database
+        databaseCache.delete(databaseId);
         
-        // Save to local storage
-        saveDatabaseList();
+        showNotification(`Database "${name}" created successfully`, 'success');
         
-        // Update UI
-        renderDatabaseList();
-        
+        // Close modal
         closeModal(modal);
-        showNotification('Database created successfully', 'success');
         
-        // Show the database interface
-        setTimeout(() => {
-            viewDatabase(dbId);
-        }, 300);
+        // Add database block to editor
+        if (typeof window.addDatabaseBlock === 'function') {
+            window.addDatabaseBlock(name);
+        }
     });
-    
-    // Focus the input field
-    setTimeout(() => {
-        document.getElementById('database-name').focus();
-    }, 300);
 }
 
 // Show database interface
@@ -595,4 +487,217 @@ export function loadDatabaseList() {
         console.error('Error loading databases:', err);
         appState.databaseList = [];
     }
-} 
+}
+
+/**
+ * Get default columns based on database type
+ */
+function getDefaultColumns(type) {
+    switch (type) {
+        case 'table':
+            return [
+                { id: 'col_1', name: 'Name', type: 'text' },
+                { id: 'col_2', name: 'Status', type: 'select', options: ['To Do', 'In Progress', 'Done'] },
+                { id: 'col_3', name: 'Due Date', type: 'date' }
+            ];
+        case 'list':
+            return [
+                { id: 'col_1', name: 'Item', type: 'text' },
+                { id: 'col_2', name: 'Completed', type: 'checkbox' }
+            ];
+        case 'kanban':
+            return [
+                { id: 'col_1', name: 'Task', type: 'text' },
+                { id: 'col_2', name: 'Status', type: 'select', options: ['To Do', 'In Progress', 'Done'] },
+                { id: 'col_3', name: 'Assignee', type: 'person' }
+            ];
+        case 'calendar':
+            return [
+                { id: 'col_1', name: 'Event', type: 'text' },
+                { id: 'col_2', name: 'Start Date', type: 'date' },
+                { id: 'col_3', name: 'End Date', type: 'date' }
+            ];
+        default:
+            return [
+                { id: 'col_1', name: 'Name', type: 'text' },
+                { id: 'col_2', name: 'Notes', type: 'text' }
+            ];
+    }
+}
+
+/**
+ * Query database with caching
+ * @param {string} dbId - Database ID
+ * @param {Object} query - Query parameters
+ * @returns {Array} - Results
+ */
+export const queryDatabase = memoize(function(dbId, query = {}) {
+    console.log(`Querying database ${dbId} with parameters:`, query);
+    
+    // Check cache first
+    if (databaseCache.has(dbId)) {
+        const cachedData = databaseCache.get(dbId);
+        console.log(`Using cached data for database ${dbId}`);
+        return filterData(cachedData, query);
+    }
+    
+    // Get database from storage
+    const databases = JSON.parse(localStorage.getItem('databases') || '{}');
+    const database = databases[dbId];
+    
+    if (!database) {
+        console.error(`Database ${dbId} not found`);
+        return [];
+    }
+    
+    // Cache the database for future queries (15 minutes TTL)
+    databaseCache.set(dbId, database, 15 * 60 * 1000);
+    
+    // Apply query filters
+    return filterData(database, query);
+}, (dbId, query) => {
+    // Resolver function to generate a unique cache key
+    return `${dbId}_${JSON.stringify(query)}`;
+});
+
+/**
+ * Filter database data based on query
+ * @param {Object} database - Database object
+ * @param {Object} query - Query parameters
+ * @returns {Array} - Filtered rows
+ */
+function filterData(database, query) {
+    // Make a copy of the rows to avoid modifying the original
+    let rows = [...database.rows];
+    
+    // Apply filters if defined
+    if (query.filters) {
+        query.filters.forEach(filter => {
+            rows = rows.filter(row => {
+                const value = row[filter.column];
+                const filterValue = filter.value;
+                
+                switch (filter.operator) {
+                    case 'equals':
+                        return value === filterValue;
+                    case 'contains':
+                        return typeof value === 'string' && value.includes(filterValue);
+                    case 'greater_than':
+                        return value > filterValue;
+                    case 'less_than':
+                        return value < filterValue;
+                    default:
+                        return true;
+                }
+            });
+        });
+    }
+    
+    // Apply sorting if defined
+    if (query.sort) {
+        rows.sort((a, b) => {
+            const valueA = a[query.sort.column];
+            const valueB = b[query.sort.column];
+            
+            // Handle different data types
+            if (typeof valueA === 'string' && typeof valueB === 'string') {
+                return query.sort.direction === 'asc' 
+                    ? valueA.localeCompare(valueB) 
+                    : valueB.localeCompare(valueA);
+            } else {
+                return query.sort.direction === 'asc'
+                    ? valueA - valueB
+                    : valueB - valueA;
+            }
+        });
+    }
+    
+    // Apply pagination if defined
+    if (query.limit) {
+        const start = query.offset || 0;
+        rows = rows.slice(start, start + query.limit);
+    }
+    
+    return rows;
+}
+
+/**
+ * Calculate database statistics - memoized for performance
+ * @param {string} dbId - Database ID
+ * @returns {Object} - Statistics
+ */
+export const calculateDatabaseStats = memoize(function(dbId) {
+    console.log(`Calculating statistics for database ${dbId}`);
+    
+    // Get database from storage or cache
+    let database;
+    if (databaseCache.has(dbId)) {
+        database = databaseCache.get(dbId);
+    } else {
+        const databases = JSON.parse(localStorage.getItem('databases') || '{}');
+        database = databases[dbId];
+        
+        if (!database) {
+            console.error(`Database ${dbId} not found`);
+            return {
+                totalRows: 0,
+                columnStats: {}
+            };
+        }
+        
+        // Cache the database
+        databaseCache.set(dbId, database, 15 * 60 * 1000);
+    }
+    
+    const stats = {
+        totalRows: database.rows.length,
+        columnStats: {}
+    };
+    
+    // Calculate statistics for each column
+    database.columns.forEach(column => {
+        const values = database.rows.map(row => row[column.id]);
+        
+        switch (column.type) {
+            case 'number':
+                // Calculate numeric stats
+                const numValues = values.filter(v => typeof v === 'number');
+                stats.columnStats[column.id] = {
+                    min: numValues.length ? Math.min(...numValues) : null,
+                    max: numValues.length ? Math.max(...numValues) : null,
+                    avg: numValues.length ? numValues.reduce((a, b) => a + b, 0) / numValues.length : null,
+                    count: numValues.length
+                };
+                break;
+                
+            case 'select':
+            case 'checkbox':
+                // Calculate frequency distribution
+                const distribution = {};
+                values.forEach(value => {
+                    distribution[value] = (distribution[value] || 0) + 1;
+                });
+                stats.columnStats[column.id] = { distribution };
+                break;
+                
+            case 'date':
+                // Find date range
+                const dateValues = values.filter(v => v).map(v => new Date(v).getTime());
+                stats.columnStats[column.id] = {
+                    earliest: dateValues.length ? new Date(Math.min(...dateValues)) : null,
+                    latest: dateValues.length ? new Date(Math.max(...dateValues)) : null,
+                    count: dateValues.length
+                };
+                break;
+                
+            default:
+                // Basic stats for other types
+                stats.columnStats[column.id] = {
+                    count: values.filter(v => v).length,
+                    empty: values.filter(v => !v).length
+                };
+        }
+    });
+    
+    return stats;
+}); 

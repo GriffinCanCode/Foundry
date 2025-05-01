@@ -2,6 +2,8 @@
  * drag-drop.js - Drag and drop functionality for editor blocks
  */
 
+import { throttle } from '../utils/optimizer.js';
+
 // State variables for drag and drop
 let draggedItem = null;
 let dropIndicator = null; // Reference to the visual indicator line
@@ -32,7 +34,8 @@ export function handleDragStart(e) {
     }
 }
 
-export function handleDragOver(e) {
+// Original unoptimized function kept for reference
+function _handleDragOver(e) {
     e.preventDefault(); // Necessary to allow dropping
     if (!draggedItem) return;
 
@@ -96,6 +99,9 @@ export function handleDragOver(e) {
         }
     }
 }
+
+// Optimized version that uses throttle to improve performance
+export const handleDragOver = throttle(_handleDragOver, 30); // 30ms throttle for smoother drag operation
 
 export function hideDropIndicator() {
     if (dropIndicator) {

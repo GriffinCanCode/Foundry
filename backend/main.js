@@ -590,6 +590,448 @@ function setupIpcHandlers() {
       return { success: false, error: error.message };
     }
   });
+
+  // Document search
+  ipcMain.handle('search-documents', async (event, query) => {
+    try {
+      // Get workspace-specific directory if available
+      let targetDir = docsDir;
+      if (activeWorkspace) {
+        const wsDocsDir = path.join(workspacesDir, activeWorkspace.id, 'documents');
+        if (fs.existsSync(wsDocsDir)) {
+          targetDir = wsDocsDir;
+        }
+      }
+      
+      // Read all document files in the target directory
+      const files = await fs.promises.readdir(targetDir);
+      const matchingDocs = [];
+      
+      // Convert query to lowercase for case-insensitive search
+      const lowerQuery = query.toLowerCase();
+      
+      for (const file of files) {
+        if (file.endsWith('.json')) {
+          try {
+            const data = await fs.promises.readFile(path.join(targetDir, file), 'utf8');
+            const doc = JSON.parse(data);
+            
+            // Search in title
+            if (doc.title && doc.title.toLowerCase().includes(lowerQuery)) {
+              matchingDocs.push(doc);
+              continue;
+            }
+            
+            // Search in content
+            if (doc.content && Array.isArray(doc.content)) {
+              const contentMatch = doc.content.some(block => {
+                return block.content && 
+                  typeof block.content === 'string' && 
+                  block.content.toLowerCase().includes(lowerQuery);
+              });
+              
+              if (contentMatch) {
+                matchingDocs.push(doc);
+              }
+            }
+          } catch (err) {
+            console.error(`Error searching document ${file}:`, err);
+          }
+        }
+      }
+      
+      return { success: true, documents: matchingDocs };
+    } catch (error) {
+      console.error('Error searching documents:', error);
+      return { success: false, error: error.message };
+    }
+  });
+  
+  // Delete a workspace
+  ipcMain.handle('delete-workspace', async (event, workspaceId) => {
+    try {
+      // Don't allow deleting the active workspace
+      if (activeWorkspace && activeWorkspace.id === workspaceId) {
+        return { 
+          success: false, 
+          error: 'Cannot delete the active workspace. Switch to another workspace first.' 
+        };
+      }
+      
+      const workspacePath = path.join(workspacesDir, `${workspaceId}.json`);
+      const workspaceDirPath = path.join(workspacesDir, workspaceId);
+      
+      // Check if the workspace exists
+      if (!fs.existsSync(workspacePath)) {
+        return { success: false, error: 'Workspace not found' };
+      }
+      
+      // Delete workspace file
+      await fs.promises.unlink(workspacePath);
+      
+      // Delete workspace directory if it exists
+      if (fs.existsSync(workspaceDirPath)) {
+        await fs.promises.rm(workspaceDirPath, { recursive: true, force: true });
+      }
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting workspace:', error);
+      return { success: false, error: error.message };
+    }
+  });
+  
+  // Get specific setting value
+  ipcMain.handle('get-setting', async (event, key, defaultValue) => {
+    try {
+      // Read settings file
+      const data = await fs.promises.readFile(settingsFilePath, 'utf8');
+      const settings = JSON.parse(data);
+      
+      return { 
+        success: true, 
+        value: settings[key] !== undefined ? settings[key] : defaultValue 
+      };
+    } catch (error) {
+      console.error('Error getting setting:', error);
+      return { success: false, error: error.message, value: defaultValue };
+    }
+  });
+  
+  // Set specific setting value
+  ipcMain.handle('set-setting', async (event, key, value) => {
+    try {
+      // Read current settings
+      const data = await fs.promises.readFile(settingsFilePath, 'utf8');
+      const settings = JSON.parse(data);
+      
+      // Update setting
+      settings[key] = value;
+      settings.lastUpdated = new Date().toISOString();
+      
+      // Save settings
+      await fs.promises.writeFile(
+        settingsFilePath,
+        JSON.stringify(settings, null, 2)
+      );
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error setting setting:', error);
+      return { success: false, error: error.message };
+    }
+  });
+  
+  // Sync specific data
+  ipcMain.handle('sync-data', async (event, dataType, dataIds) => {
+    try {
+      // This is a placeholder for actual sync implementation
+      // In a real app, this would sync with a remote server
+      
+      // For now, just pretend we're syncing by updating the lastSynced property
+      const now = new Date().toISOString();
+      
+      if (dataType === 'documents' && Array.isArray(dataIds)) {
+        // Get workspace-specific directory if available
+        let targetDir = docsDir;
+        if (activeWorkspace) {
+          const wsDocsDir = path.join(workspacesDir, activeWorkspace.id, 'documents');
+          if (fs.existsSync(wsDocsDir)) {
+            targetDir = wsDocsDir;
+          }
+        }
+        
+        // Update each document
+        for (const id of dataIds) {
+          const filePath = path.join(targetDir, `${id}.json`);
+          if (fs.existsSync(filePath)) {
+            const data = await fs.promises.readFile(filePath, 'utf8');
+            const doc = JSON.parse(data);
+            
+            // Update lastSynced property
+            doc.lastSynced = now;
+            
+            await fs.promises.writeFile(filePath, JSON.stringify(doc, null, 2));
+          }
+        }
+      } else if (dataType === 'workspaces' && Array.isArray(dataIds)) {
+        // Update each workspace
+        for (const id of dataIds) {
+          const filePath = path.join(workspacesDir, `${id}.json`);
+          if (fs.existsSync(filePath)) {
+            const data = await fs.promises.readFile(filePath, 'utf8');
+            const workspace = JSON.parse(data);
+            
+            // Update lastSynced property
+            workspace.lastSynced = now;
+            
+            await fs.promises.writeFile(filePath, JSON.stringify(workspace, null, 2));
+          }
+        }
+      }
+      
+      // Update last sync time in settings
+      const settings = await fs.promises.readFile(settingsFilePath, 'utf8')
+        .then(data => JSON.parse(data))
+        .catch(() => defaultSettings);
+      
+      settings.lastSyncTime = now;
+      
+      await fs.promises.writeFile(
+        settingsFilePath,
+        JSON.stringify(settings, null, 2)
+      );
+      
+      // Emit sync complete event
+      event.sender.send('sync-complete', { dataType, count: dataIds.length, time: now });
+      
+      return { success: true, time: now };
+    } catch (error) {
+      console.error('Error syncing data:', error);
+      return { success: false, error: error.message };
+    }
+  });
+  
+  // Sync entire workspace
+  ipcMain.handle('sync-workspace', async (event, workspaceId) => {
+    try {
+      // This is a placeholder for actual sync implementation
+      // In a real app, this would sync with a remote server
+      
+      // Get the workspace
+      const workspacePath = path.join(workspacesDir, `${workspaceId}.json`);
+      if (!fs.existsSync(workspacePath)) {
+        return { success: false, error: 'Workspace not found' };
+      }
+      
+      const now = new Date().toISOString();
+      
+      // Mark workspace as synced
+      const workspaceData = await fs.promises.readFile(workspacePath, 'utf8');
+      const workspace = JSON.parse(workspaceData);
+      workspace.lastSynced = now;
+      
+      await fs.promises.writeFile(workspacePath, JSON.stringify(workspace, null, 2));
+      
+      // Mark all documents in the workspace as synced
+      const wsDocsDir = path.join(workspacesDir, workspaceId, 'documents');
+      if (fs.existsSync(wsDocsDir)) {
+        const files = await fs.promises.readdir(wsDocsDir);
+        
+        for (const file of files) {
+          if (file.endsWith('.json')) {
+            const filePath = path.join(wsDocsDir, file);
+            const docData = await fs.promises.readFile(filePath, 'utf8');
+            const doc = JSON.parse(docData);
+            
+            doc.lastSynced = now;
+            
+            await fs.promises.writeFile(filePath, JSON.stringify(doc, null, 2));
+          }
+        }
+      }
+      
+      // Update last sync time in settings
+      const settings = await fs.promises.readFile(settingsFilePath, 'utf8')
+        .then(data => JSON.parse(data))
+        .catch(() => defaultSettings);
+      
+      settings.lastSyncTime = now;
+      
+      await fs.promises.writeFile(
+        settingsFilePath,
+        JSON.stringify(settings, null, 2)
+      );
+      
+      // Emit sync complete event
+      event.sender.send('sync-complete', { workspaceId, time: now });
+      
+      return { success: true, time: now };
+    } catch (error) {
+      console.error('Error syncing workspace:', error);
+      return { success: false, error: error.message };
+    }
+  });
+  
+  // Sync all data
+  ipcMain.handle('sync-all', async (event) => {
+    try {
+      // This is a placeholder for actual sync implementation
+      // In a real app, this would sync with a remote server
+      
+      const now = new Date().toISOString();
+      
+      // Sync all workspaces
+      const workspaceFiles = await fs.promises.readdir(workspacesDir);
+      
+      for (const file of workspaceFiles) {
+        if (file.endsWith('.json')) {
+          const filePath = path.join(workspacesDir, file);
+          const data = await fs.promises.readFile(filePath, 'utf8');
+          const workspace = JSON.parse(data);
+          
+          // Update lastSynced property
+          workspace.lastSynced = now;
+          
+          await fs.promises.writeFile(filePath, JSON.stringify(workspace, null, 2));
+          
+          // Sync all documents in this workspace
+          const wsId = workspace.id;
+          const wsDocsDir = path.join(workspacesDir, wsId, 'documents');
+          
+          if (fs.existsSync(wsDocsDir)) {
+            const docFiles = await fs.promises.readdir(wsDocsDir);
+            
+            for (const docFile of docFiles) {
+              if (docFile.endsWith('.json')) {
+                const docFilePath = path.join(wsDocsDir, docFile);
+                const docData = await fs.promises.readFile(docFilePath, 'utf8');
+                const doc = JSON.parse(docData);
+                
+                // Update lastSynced property
+                doc.lastSynced = now;
+                
+                await fs.promises.writeFile(docFilePath, JSON.stringify(doc, null, 2));
+              }
+            }
+          }
+        }
+      }
+      
+      // Sync all documents in the default directory
+      const docFiles = await fs.promises.readdir(docsDir);
+      
+      for (const file of docFiles) {
+        if (file.endsWith('.json')) {
+          const filePath = path.join(docsDir, file);
+          const data = await fs.promises.readFile(filePath, 'utf8');
+          const doc = JSON.parse(data);
+          
+          // Update lastSynced property
+          doc.lastSynced = now;
+          
+          await fs.promises.writeFile(filePath, JSON.stringify(doc, null, 2));
+        }
+      }
+      
+      // Update last sync time in settings
+      const settings = await fs.promises.readFile(settingsFilePath, 'utf8')
+        .then(data => JSON.parse(data))
+        .catch(() => defaultSettings);
+      
+      settings.lastSyncTime = now;
+      
+      await fs.promises.writeFile(
+        settingsFilePath,
+        JSON.stringify(settings, null, 2)
+      );
+      
+      // Emit sync complete event
+      event.sender.send('sync-complete', { full: true, time: now });
+      
+      return { success: true, time: now };
+    } catch (error) {
+      console.error('Error syncing all data:', error);
+      return { success: false, error: error.message };
+    }
+  });
+  
+  // Get last sync time
+  ipcMain.handle('get-last-sync-time', async (event) => {
+    try {
+      // Read settings file
+      const data = await fs.promises.readFile(settingsFilePath, 'utf8');
+      const settings = JSON.parse(data);
+      
+      return { 
+        success: true, 
+        time: settings.lastSyncTime || null
+      };
+    } catch (error) {
+      console.error('Error getting last sync time:', error);
+      return { success: false, error: error.message, time: null };
+    }
+  });
+  
+  // Get system info
+  ipcMain.handle('get-system-info', async (event) => {
+    try {
+      return {
+        success: true,
+        info: {
+          platform: process.platform,
+          arch: process.arch,
+          version: process.getSystemVersion(),
+          userDataPath: app.getPath('userData'),
+          appPath: app.getAppPath(),
+          storagePath: dataDir
+        }
+      };
+    } catch (error) {
+      console.error('Error getting system info:', error);
+      return { success: false, error: error.message };
+    }
+  });
+  
+  // Get app version
+  ipcMain.handle('get-app-version', () => {
+    return { 
+      success: true, 
+      version: app.getVersion() 
+    };
+  });
+  
+  // Check for updates
+  ipcMain.handle('check-for-updates', async (event) => {
+    try {
+      // This is a placeholder for actual update check
+      // In a real app, this would check with a remote server
+      
+      // For now, just return no updates available
+      return { 
+        success: true, 
+        updateAvailable: false,
+        currentVersion: app.getVersion(),
+        latestVersion: app.getVersion()
+      };
+    } catch (error) {
+      console.error('Error checking for updates:', error);
+      return { success: false, error: error.message };
+    }
+  });
+  
+  // Offline mode management
+  let offlineMode = false;
+  
+  ipcMain.handle('set-offline-mode', async (event, enabled) => {
+    try {
+      offlineMode = !!enabled;
+      
+      // Update settings
+      const settings = await fs.promises.readFile(settingsFilePath, 'utf8')
+        .then(data => JSON.parse(data))
+        .catch(() => defaultSettings);
+      
+      settings.offlineMode = offlineMode;
+      
+      await fs.promises.writeFile(
+        settingsFilePath,
+        JSON.stringify(settings, null, 2)
+      );
+      
+      // Notify renderer
+      event.sender.send('network-status-changed', { offline: offlineMode });
+      
+      return { success: true, offline: offlineMode };
+    } catch (error) {
+      console.error('Error setting offline mode:', error);
+      return { success: false, error: error.message };
+    }
+  });
+  
+  ipcMain.handle('is-offline-mode', () => {
+    return { success: true, offline: offlineMode };
+  });
 }
 
 // This method will be called when Electron has finished initialization

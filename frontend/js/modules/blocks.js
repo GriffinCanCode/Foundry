@@ -4,131 +4,128 @@
 
 import { handleDragStart, handleDragOver, handleDragLeave, handleDrop, handleDragEnd } from './drag-drop.js';
 import { showNotification } from '../utils/notifications.js';
+import { FastDOM, delegateEvent, batchDOM } from '../utils/optimizer.js';
 
 let blockIdCounter = 0; // Simple counter for unique IDs
 let dropIndicator = null; // Reference to the visual indicator line
+let eventDelegationInitialized = false; // Track if we've set up delegation
 
-// Function to create a new block element with enhanced styling
+// Function to create a new block element with enhanced styling and optimized DOM operations
 export function createBlockElement(type, content = '') {
-    const blockContainer = document.createElement('div');
-    // Base classes for container with improved styling
-    blockContainer.className = 'block-container group relative transition-all duration-200 hover:bg-surface-50 rounded-lg p-3';
-    blockContainer.id = `block-${blockIdCounter++}`;
-    blockContainer.draggable = true; // Make the container draggable
-
-    // --- Event Listeners for Drag & Drop ---
-    blockContainer.addEventListener('dragstart', handleDragStart);
-    blockContainer.addEventListener('dragover', handleDragOver);
-    blockContainer.addEventListener('dragleave', handleDragLeave);
-    blockContainer.addEventListener('drop', handleDrop);
-    blockContainer.addEventListener('dragend', handleDragEnd);
-
-    // --- Drag Handle with improved styling ---
-    const controls = document.createElement('div');
-    controls.className = 'block-controls opacity-0 group-hover:opacity-100 transition-opacity duration-200';
-    controls.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="text-surface-400">
-          <path d="M7 2a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM7 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM7 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm-3 3a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm-3 3a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/>
-        </svg>
-    `;
-    // Prevent handle from interfering with text selection/editing
-    controls.addEventListener('mousedown', (e) => e.preventDefault());
-    blockContainer.appendChild(controls);
-
-    // Add options menu button with improved styling
-    const blockOptions = document.createElement('div');
-    blockOptions.className = 'block-options opacity-0 group-hover:opacity-100 transition-opacity duration-200';
-    blockOptions.innerHTML = `
-        <button class="edit-block-btn p-1.5 rounded-md text-surface-400 hover:text-surface-700 hover:bg-surface-100 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 20h9"></path>
-                <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-            </svg>
-        </button>
-        <button class="delete-block-btn p-1.5 rounded-md text-surface-400 hover:text-red-500 hover:bg-red-50 transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-            </svg>
-        </button>
-    `;
-    
-    // Add edit handler
-    blockOptions.querySelector('.edit-block-btn').addEventListener('click', () => {
-        editBlock(blockContainer);
+    // Create base block container with all needed attributes in one operation
+    const blockId = `block-${blockIdCounter++}`;
+    const blockContainer = FastDOM.createElement('div', {
+        className: `block-container ${type}-block-container group relative transition-all duration-200 hover:bg-surface-50 rounded-lg p-3`,
+        id: blockId,
+        draggable: true,
+        dataset: {
+            blockType: type
+        },
+        // Add drag event listeners directly in creation
+        ondragstart: handleDragStart,
+        ondragover: handleDragOver,
+        ondragleave: handleDragLeave,
+        ondrop: handleDrop,
+        ondragend: handleDragEnd
     });
-    
-    // Add delete handler with confirmation dialog
-    blockOptions.querySelector('.delete-block-btn').addEventListener('click', () => {
-        const confirmDelete = confirm('Delete this block?');
-        if (confirmDelete) {
-            // Apply delete animation
-            blockContainer.style.opacity = '0';
-            blockContainer.style.transform = 'translateY(-10px)';
-            blockContainer.style.transition = 'opacity 300ms, transform 300ms';
-            
-            setTimeout(() => {
-                blockContainer.remove();
-            }, 300);
-        }
-    });
-    
-    blockContainer.appendChild(blockOptions);
 
-    // --- Block Content based on Type ---
+    // Set up event delegation for block controls if not already done
+    if (!eventDelegationInitialized) {
+        setupBlockEventDelegation();
+    }
+
+    // --- Create all components with FastDOM ---
+    
+    // --- Create Drag Handle ---
+    const controls = FastDOM.createElement('div', {
+        className: 'block-controls opacity-0 group-hover:opacity-100 transition-opacity duration-200',
+        innerHTML: `
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="text-surface-400">
+              <path d="M7 2a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM7 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM7 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm-3 3a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm-3 3a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0z"/>
+            </svg>
+        `,
+        onmousedown: (e) => e.preventDefault() // Prevent handle from interfering with text selection
+    });
+
+    // --- Create Block Options ---
+    const blockOptions = FastDOM.createElement('div', {
+        className: 'block-options opacity-0 group-hover:opacity-100 transition-opacity duration-200',
+        innerHTML: `
+            <button class="edit-block-btn p-1.5 rounded-md text-surface-400 hover:text-surface-700 hover:bg-surface-100 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 20h9"></path>
+                    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                </svg>
+            </button>
+            <button class="delete-block-btn p-1.5 rounded-md text-surface-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+            </button>
+        `
+    });
+
+    // Create block content based on type
     let blockElement; // The actual editable element or specific structure
 
     switch (type) {
         case 'heading':
-            blockElement = document.createElement('h2');
-            // Apply base editable and specific heading styles
-            blockElement.className = 'editable-block heading-block font-display font-semibold text-2xl';
-            blockElement.contentEditable = true;
-            blockElement.dataset.placeholder = 'Heading';
-            blockElement.textContent = content;
-            blockContainer.appendChild(blockElement); // Append directly
+            blockElement = FastDOM.createElement('h2', {
+                className: 'editable-block heading-block font-display font-semibold text-2xl',
+                contentEditable: true,
+                dataset: { placeholder: 'Heading' },
+                textContent: content
+            });
             break;
 
         case 'todo':
-            // To-do uses a different structure within the container
-            blockContainer.classList.add('todo-block-container'); // Use specific class for styling flex etc.
-            // Remove padding-left from container as flex handles spacing
-            blockContainer.style.paddingLeft = '30px'; // Keep space for handle
+            // To-do uses a different structure with checkbox and text
+            FastDOM.setStyles(blockContainer, { paddingLeft: '30px' });
 
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.className = 'todo-checkbox';
-
-            const textSpan = document.createElement('span');
-            // Apply base editable and specific text styles
-            textSpan.className = 'editable-block todo-text';
-            textSpan.contentEditable = true;
-            textSpan.dataset.placeholder = 'To-do item';
-            textSpan.textContent = content;
-
-            // Event listener for checkbox change
-            checkbox.addEventListener('change', (e) => {
-                textSpan.classList.toggle('line-through', e.target.checked);
+            // Create checkbox
+            const checkbox = FastDOM.createElement('input', {
+                type: 'checkbox',
+                className: 'todo-checkbox',
+                onchange: (e) => {
+                    const textSpan = blockContainer.querySelector('.todo-text');
+                    if (textSpan) {
+                        textSpan.classList.toggle('line-through', e.target.checked);
+                    }
+                }
             });
 
-            // Append checkbox and text span to the container
-            // Controls are already added first
-            blockContainer.appendChild(checkbox);
-            blockContainer.appendChild(textSpan);
+            // Create editable text span
+            const textSpan = FastDOM.createElement('span', {
+                className: 'editable-block todo-text',
+                contentEditable: true,
+                dataset: { placeholder: 'To-do item' },
+                textContent: content
+            });
+
+            // Use DocumentFragment for adding multiple children efficiently
+            const todoFragment = document.createDocumentFragment();
+            todoFragment.appendChild(checkbox);
+            todoFragment.appendChild(textSpan);
+            
+            // Append both elements to container
+            blockElement = todoFragment;
             break;
 
         case 'list':
-            blockElement = document.createElement('ul');
-            blockElement.className = 'editable-block list-block pl-5 list-disc space-y-1';
+            // Create list with first item
+            blockElement = FastDOM.createElement('ul', {
+                className: 'editable-block list-block pl-5 list-disc space-y-1'
+            });
             
-            const listItem = document.createElement('li');
-            listItem.contentEditable = true;
-            listItem.textContent = content || 'List item';
+            const listItem = FastDOM.createElement('li', {
+                contentEditable: true,
+                textContent: content || 'List item'
+            });
             
             blockElement.appendChild(listItem);
-            blockContainer.appendChild(blockElement);
             
-            // Handle enter key to create new list items with better positioning
+            // Handle enter key to create new list items
             blockElement.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
@@ -168,86 +165,89 @@ export function createBlockElement(type, content = '') {
             break;
 
         case 'quote':
-            blockContainer.classList.add('quote-block-container');
-            blockElement = document.createElement('blockquote');
-            blockElement.className = 'editable-block quote-block pl-4 border-l-4 border-primary-300 italic text-surface-700';
-            blockElement.contentEditable = true;
-            blockElement.dataset.placeholder = 'Quote';
-            blockElement.textContent = content;
-            blockContainer.appendChild(blockElement);
+            blockElement = FastDOM.createElement('blockquote', {
+                className: 'editable-block quote-block pl-4 border-l-4 border-primary-300 italic text-surface-700',
+                contentEditable: true,
+                dataset: { placeholder: 'Quote' },
+                textContent: content
+            });
             break;
 
         case 'code':
-            blockContainer.classList.add('code-block-container');
+            // Create code block with pre and code elements
+            const preElement = FastDOM.createElement('pre', {
+                className: 'bg-surface-100 rounded-lg p-4 overflow-x-auto',
+                style: { position: 'relative' }
+            });
             
-            // Create a code container with pre and code elements
-            const preElement = document.createElement('pre');
-            preElement.className = 'bg-surface-100 rounded-lg p-4 overflow-x-auto';
+            const codeElement = FastDOM.createElement('code', {
+                className: 'editable-block code-block text-sm font-mono',
+                contentEditable: true,
+                dataset: { placeholder: 'Code' },
+                textContent: content
+            });
             
-            blockElement = document.createElement('code');
-            blockElement.className = 'editable-block code-block text-sm font-mono';
-            blockElement.contentEditable = true;
-            blockElement.dataset.placeholder = 'Code';
-            blockElement.textContent = content;
+            const languageSelector = FastDOM.createElement('select', {
+                className: 'absolute right-3 top-3 text-xs bg-surface-200 hover:bg-surface-300 transition-colors border-none rounded-md px-2 py-1',
+                innerHTML: `
+                    <option value="javascript">JavaScript</option>
+                    <option value="python">Python</option>
+                    <option value="html">HTML</option>
+                    <option value="css">CSS</option>
+                    <option value="json">JSON</option>
+                    <option value="bash">Bash</option>
+                `
+            });
             
-            preElement.appendChild(blockElement);
-            blockContainer.appendChild(preElement);
-            
-            // Add language selector with improved styling
-            const languageSelector = document.createElement('select');
-            languageSelector.className = 'absolute right-3 top-3 text-xs bg-surface-200 hover:bg-surface-300 transition-colors border-none rounded-md px-2 py-1';
-            languageSelector.innerHTML = `
-                <option value="javascript">JavaScript</option>
-                <option value="python">Python</option>
-                <option value="html">HTML</option>
-                <option value="css">CSS</option>
-                <option value="json">JSON</option>
-                <option value="bash">Bash</option>
-            `;
-            preElement.style.position = 'relative';
+            preElement.appendChild(codeElement);
             preElement.appendChild(languageSelector);
+            blockElement = preElement;
             break;
 
         case 'database':
-            blockContainer.classList.add('database-block-container');
+            // Create database reference block
+            const dbWrapper = FastDOM.createElement('div', {
+                className: 'border border-surface-200 rounded-lg p-4 bg-surface-50'
+            });
             
-            // Create a database reference block with improved styling
-            const dbWrapper = document.createElement('div');
-            dbWrapper.className = 'border border-surface-200 rounded-lg p-4 bg-surface-50';
+            const dbHeader = FastDOM.createElement('div', {
+                className: 'flex items-center justify-between mb-3'
+            });
             
-            const dbHeader = document.createElement('div');
-            dbHeader.className = 'flex items-center justify-between mb-3';
+            const dbTitle = FastDOM.createElement('h3', {
+                className: 'font-medium text-surface-800 flex items-center',
+                innerHTML: `
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 text-primary-500">
+                        <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                    </svg>
+                    ${content || 'Database'}
+                `
+            });
             
-            const dbTitle = document.createElement('h3');
-            dbTitle.className = 'font-medium text-surface-800 flex items-center';
-            dbTitle.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 text-primary-500">
-                    <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
-                    <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
-                    <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
-                </svg>
-                ${content || 'Database'}
-            `;
+            const dbControls = FastDOM.createElement('div', {
+                className: 'flex space-x-2',
+                innerHTML: `
+                    <button class="px-3 py-1.5 text-xs bg-primary-50 text-primary-600 font-medium rounded-md hover:bg-primary-100 transition-colors">View</button>
+                    <button class="px-3 py-1.5 text-xs bg-surface-100 text-surface-700 font-medium rounded-md hover:bg-surface-200 transition-colors">Properties</button>
+                `
+            });
             
-            const dbControls = document.createElement('div');
-            dbControls.className = 'flex space-x-2';
-            dbControls.innerHTML = `
-                <button class="px-3 py-1.5 text-xs bg-primary-50 text-primary-600 font-medium rounded-md hover:bg-primary-100 transition-colors">View</button>
-                <button class="px-3 py-1.5 text-xs bg-surface-100 text-surface-700 font-medium rounded-md hover:bg-surface-200 transition-colors">Properties</button>
-            `;
+            const dbPreview = FastDOM.createElement('div', {
+                className: 'text-sm text-surface-500',
+                innerHTML: 'Click "View" to open database'
+            });
             
+            // Use DocumentFragment for better performance
+            const fragment = document.createDocumentFragment();
             dbHeader.appendChild(dbTitle);
             dbHeader.appendChild(dbControls);
+            fragment.appendChild(dbHeader);
+            fragment.appendChild(dbPreview);
+            dbWrapper.appendChild(fragment);
             
-            const dbPreview = document.createElement('div');
-            dbPreview.className = 'text-sm text-surface-500';
-            dbPreview.innerHTML = 'Click "View" to open database';
-            
-            dbWrapper.appendChild(dbHeader);
-            dbWrapper.appendChild(dbPreview);
-            blockContainer.appendChild(dbWrapper);
-            
-            // Handle database view button click
+            // Add click handler for view button
             dbControls.querySelector('button').addEventListener('click', () => {
                 // Toggle the sample database view for demonstration
                 const sampleDB = document.getElementById('sample-database');
@@ -268,25 +268,43 @@ export function createBlockElement(type, content = '') {
                     }
                 }
             });
+            
+            blockElement = dbWrapper;
             break;
 
         case 'text':
         default: // Default to text block
-            blockElement = document.createElement('p');
-            // Apply base editable and specific text styles
-            blockElement.className = 'editable-block text-block text-surface-800 leading-relaxed';
-            blockElement.contentEditable = true;
-            blockElement.dataset.placeholder = 'Type / for commands or start typing...';
-            blockElement.textContent = content;
-            blockContainer.appendChild(blockElement); // Append directly
+            blockElement = FastDOM.createElement('p', {
+                className: 'editable-block text-block text-surface-800 leading-relaxed',
+                contentEditable: true,
+                dataset: { placeholder: 'Type / for commands or start typing...' },
+                textContent: content
+            });
             
             // Add support for markdown-style formatting
             blockElement.addEventListener('keydown', handleMarkdownShortcuts);
             break;
     }
 
+    // Build the final block structure using batch operations
+    batchDOM.add(() => {
+        // Append controls and options to the container
+        blockContainer.appendChild(controls);
+        blockContainer.appendChild(blockOptions);
+        
+        // Append the main block element
+        if (blockElement instanceof DocumentFragment) {
+            blockContainer.appendChild(blockElement);
+        } else {
+            blockContainer.appendChild(blockElement);
+        }
+    });
+
     // Add key handler for block transformation and navigation
-    const editableElement = blockContainer.querySelector('[contenteditable=true]');
+    const editableElement = type === 'todo' ? 
+        blockContainer.querySelector('.todo-text') : 
+        blockContainer.querySelector('[contenteditable=true]');
+    
     if (editableElement) {
         editableElement.addEventListener('keydown', (e) => {
             // Enter key creates a new block below
@@ -358,6 +376,40 @@ export function createBlockElement(type, content = '') {
     }, 10);
 
     return blockContainer; // Return the fully constructed container
+}
+
+// Setup event delegation for block controls instead of adding listeners to each block
+function setupBlockEventDelegation() {
+    const editor = document.getElementById('editor');
+    if (!editor) return;
+
+    // Use event delegation for edit button
+    delegateEvent(editor, 'click', '.edit-block-btn', function(event) {
+        const blockContainer = this.closest('.block-container');
+        if (blockContainer) {
+            editBlock(blockContainer);
+        }
+    });
+
+    // Use event delegation for delete button
+    delegateEvent(editor, 'click', '.delete-block-btn', function(event) {
+        const blockContainer = this.closest('.block-container');
+        if (blockContainer) {
+            const confirmDelete = confirm('Delete this block?');
+            if (confirmDelete) {
+                // Apply delete animation
+                blockContainer.style.opacity = '0';
+                blockContainer.style.transform = 'translateY(-10px)';
+                blockContainer.style.transition = 'opacity 300ms, transform 300ms';
+                
+                setTimeout(() => {
+                    blockContainer.remove();
+                }, 300);
+            }
+        }
+    });
+
+    eventDelegationInitialized = true;
 }
 
 // Handle markdown shortcuts

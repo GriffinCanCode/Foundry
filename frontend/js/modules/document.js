@@ -6,6 +6,21 @@ import { appState } from '../core/app-core.js';
 import { renderDocumentList } from './ui.js';
 import { showNotification } from '../utils/notifications.js';
 import { createBlockElement } from './blocks.js';
+import { 
+  initializeDocumentStorage,
+  saveDocument, 
+  loadDocument as loadDocumentFromStorage,
+  deleteDocument as deleteDocumentFromStorage, 
+  listDocuments as listDocumentsFromStorage,
+  exportDocuments as exportDocumentsToFile,
+  importDocuments as importDocumentsFromFile,
+  searchDocuments
+} from '../storage/document-storage.js';
+
+// Initialize document storage when module is imported
+initializeDocumentStorage().catch(error => {
+  console.error('Failed to initialize document storage:', error);
+});
 
 // Create a new document
 export function createNewDocument() {
@@ -22,40 +37,46 @@ export function createNewDocument() {
         workspaceId: appState.currentWorkspace?.id
     };
     
-    // Add to app state
-    appState.documentList.push(newDoc);
-    
-    // Save to local storage (in production, this would be to the server)
-    saveDocumentList();
-    
-    // Set as current document
-    appState.currentDocument = newDoc;
-    
-    // Update UI
-    renderDocumentList();
-    renderDocument(newDoc);
-    
-    showNotification('New document created', 'success');
+    // Save to storage
+    saveDocument(newDoc)
+        .then(result => {
+            // Add to app state
+            appState.documentList.push(newDoc);
+            
+            // Set as current document
+            appState.currentDocument = newDoc;
+            
+            // Update UI
+            renderDocumentList();
+            renderDocument(newDoc);
+            
+            showNotification('New document created', 'success');
+        })
+        .catch(error => {
+            console.error('Error creating document:', error);
+            showNotification('Failed to create document', 'error');
+        });
 }
 
 // Load a document by ID
 export function loadDocument(id) {
-    // Find document in state
-    const document = appState.documentList.find(doc => doc.id === id);
-    if (!document) {
-        showNotification('Document not found', 'error');
-        return;
-    }
-    
-    // Set as current document
-    appState.currentDocument = document;
-    
-    // Render the document contents
-    renderDocument(document);
-    
-    // Update last accessed timestamp
-    document.lastAccessed = new Date().toISOString();
-    saveDocumentList();
+    // Attempt to load from storage
+    loadDocumentFromStorage(id)
+        .then(document => {
+            // Set as current document
+            appState.currentDocument = document;
+            
+            // Render the document contents
+            renderDocument(document);
+            
+            // Update last accessed timestamp
+            document.lastAccessed = new Date().toISOString();
+            saveDocument(document, { silent: true });
+        })
+        .catch(error => {
+            console.error('Error loading document:', error);
+            showNotification('Document not found', 'error');
+        });
 }
 
 // Render document content in the editor
@@ -161,48 +182,54 @@ export function saveCurrentDocument(silent = false) {
     appState.currentDocument.content = content;
     appState.currentDocument.updated = new Date().toISOString();
     
-    // Save document list
-    saveDocumentList();
-    
-    if (!silent) showNotification('Document saved', 'success');
+    // Save document to storage
+    saveDocument(appState.currentDocument, { silent })
+        .then(result => {
+            if (!silent) showNotification('Document saved', 'success');
+        })
+        .catch(error => {
+            console.error('Error saving document:', error);
+            if (!silent) showNotification('Failed to save document', 'error');
+        });
 }
 
 // Delete a document by ID
 export function deleteDocument(id) {
-    // Find document index
-    const index = appState.documentList.findIndex(doc => doc.id === id);
-    if (index === -1) {
-        showNotification('Document not found', 'error');
-        return;
-    }
-    
     // Confirm deletion
     const confirm = window.confirm('Are you sure you want to delete this document?');
     if (!confirm) return;
     
-    // Remove from app state
-    appState.documentList.splice(index, 1);
-    
-    // If deleting the current document, clear current document
-    if (appState.currentDocument && appState.currentDocument.id === id) {
-        appState.currentDocument = null;
-        
-        // Clear editor
-        const editor = document.getElementById('editor');
-        if (editor) editor.innerHTML = '';
-        
-        // Clear title
-        const titleElement = document.getElementById('document-title');
-        if (titleElement) titleElement.textContent = '';
-    }
-    
-    // Save document list
-    saveDocumentList();
-    
-    // Update UI
-    renderDocumentList();
-    
-    showNotification('Document deleted', 'success');
+    // Delete from storage
+    deleteDocumentFromStorage(id)
+        .then(result => {
+            // If deleting the current document, clear current document
+            if (appState.currentDocument && appState.currentDocument.id === id) {
+                appState.currentDocument = null;
+                
+                // Clear editor
+                const editor = document.getElementById('editor');
+                if (editor) editor.innerHTML = '';
+                
+                // Clear title
+                const titleElement = document.getElementById('document-title');
+                if (titleElement) titleElement.textContent = '';
+            }
+            
+            // Remove from app state
+            const index = appState.documentList.findIndex(doc => doc.id === id);
+            if (index !== -1) {
+                appState.documentList.splice(index, 1);
+            }
+            
+            // Update UI
+            renderDocumentList();
+            
+            showNotification('Document deleted', 'success');
+        })
+        .catch(error => {
+            console.error('Error deleting document:', error);
+            showNotification('Failed to delete document', 'error');
+        });
 }
 
 // Export current document
@@ -216,21 +243,15 @@ export function exportCurrentDocument() {
     // Save document first to ensure latest content
     saveCurrentDocument(true);
     
-    // Create a blob from the document data
-    const data = JSON.stringify(appState.currentDocument, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    
-    // Create a download link
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `${appState.currentDocument.title.replace(/\s+/g, '_')}.json`;
-    
-    // Append to document, trigger click, then remove
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    
-    showNotification('Document exported', 'success');
+    // Export document
+    exportDocumentsToFile(appState.currentDocument.id)
+        .then(() => {
+            showNotification('Document exported', 'success');
+        })
+        .catch(error => {
+            console.error('Error exporting document:', error);
+            showNotification('Failed to export document', 'error');
+        });
 }
 
 // Export all documents
@@ -241,99 +262,83 @@ export function exportAllDocuments() {
         return;
     }
     
-    // Create a blob from all document data
-    const data = JSON.stringify({
-        documents: appState.documentList,
-        workspace: appState.currentWorkspace,
-        exportDate: new Date().toISOString()
-    }, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
+    // Get all document IDs
+    const documentIds = appState.documentList.map(doc => doc.id);
     
-    // Create a download link
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `foundry_export_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
-    
-    // Append to document, trigger click, then remove
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    
-    showNotification('All documents exported', 'success');
+    // Export all documents
+    exportDocumentsToFile(documentIds)
+        .then(() => {
+            showNotification('All documents exported', 'success');
+        })
+        .catch(error => {
+            console.error('Error exporting documents:', error);
+            showNotification('Failed to export documents', 'error');
+        });
 }
 
-// Import documents from a file
+// Import documents
 export function importDocuments(file) {
     if (!file) {
-        showNotification('No file selected', 'error');
-        return;
-    }
-    
-    // Read file
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const data = JSON.parse(e.target.result);
-            
-            // Check if data has documents
-            if (!data.documents || !Array.isArray(data.documents)) {
-                showNotification('Invalid import file format', 'error');
-                return;
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        
+        input.onchange = (e) => {
+            if (e.target.files && e.target.files[0]) {
+                _importDocumentsFromFile(e.target.files[0]);
             }
-            
-            // Add unique documents to app state
-            let addedCount = 0;
-            data.documents.forEach(doc => {
-                // Skip if document already exists
-                if (appState.documentList.some(d => d.id === doc.id)) return;
-                
-                // Add to app state
-                appState.documentList.push(doc);
-                addedCount++;
-            });
-            
-            // Save document list
-            saveDocumentList();
-            
-            // Update UI
-            renderDocumentList();
-            
-            showNotification(`Imported ${addedCount} documents`, 'success');
-        } catch (err) {
-            console.error('Error importing documents:', err);
-            showNotification('Failed to import documents', 'error');
-        }
-    };
-    reader.readAsText(file);
-}
-
-// Save document list to local storage
-function saveDocumentList() {
-    try {
-        localStorage.setItem(
-            `foundry_docs_${appState.currentWorkspace?.id || 'default'}`, 
-            JSON.stringify(appState.documentList)
-        );
-    } catch (err) {
-        console.error('Error saving documents:', err);
-        showNotification('Failed to save documents', 'error', 3000);
+        };
+        
+        input.click();
+    } else {
+        _importDocumentsFromFile(file);
     }
 }
 
-// Load document list from local storage
+// Helper for importing documents
+function _importDocumentsFromFile(file) {
+    importDocumentsFromFile(file)
+        .then(importedIds => {
+            // Refresh document list
+            loadDocumentList();
+            
+            showNotification(`Imported ${importedIds.length} document(s)`, 'success');
+        })
+        .catch(error => {
+            console.error('Error importing documents:', error);
+            showNotification('Failed to import documents: ' + error.message, 'error');
+        });
+}
+
+// Load document list from storage
 export function loadDocumentList() {
-    try {
-        const docs = localStorage.getItem(
-            `foundry_docs_${appState.currentWorkspace?.id || 'default'}`
-        );
-        if (docs) {
-            appState.documentList = JSON.parse(docs);
+    listDocumentsFromStorage({ workspaceId: appState.currentWorkspace?.id })
+        .then(documents => {
+            appState.documentList = documents;
             renderDocumentList();
-        } else {
-            appState.documentList = [];
-        }
-    } catch (err) {
-        console.error('Error loading documents:', err);
-        appState.documentList = [];
+        })
+        .catch(error => {
+            console.error('Error loading document list:', error);
+            showNotification('Failed to load documents', 'error');
+        });
+}
+
+// Search for documents
+export function searchDocumentsByContent(query) {
+    return searchDocuments(query);
+}
+
+// Deprecated: Old function to save document list to localStorage
+// Kept for backward compatibility, will be removed in future versions
+function saveDocumentList() {
+    console.warn('saveDocumentList is deprecated, documents are saved individually now');
+    
+    // Save each document in the list
+    if (appState.documentList && appState.documentList.length > 0) {
+        appState.documentList.forEach(doc => {
+            saveDocument(doc, { silent: true }).catch(err => {
+                console.error('Error saving document during list save:', err);
+            });
+        });
     }
 } 
