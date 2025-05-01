@@ -14,8 +14,11 @@ import {
     hideBlockMenu,
     showSlashCommandMenu,
     transformBlock,
-    insertBlockAfter
-} from './modules/blocks.js';
+    insertBlockAfter,
+    initializePageEditor,
+    getEditorContent
+} from './modules/page-editor.js';
+
 import { 
     handleDragStart, 
     handleDragOver, 
@@ -38,8 +41,18 @@ window.handleDragEnd = handleDragEnd;
 window.showSlashCommandMenu = showSlashCommandMenu;
 window.transformBlock = transformBlock;
 window.insertBlockAfter = insertBlockAfter;
+window.initializePageEditor = initializePageEditor;
+window.getEditorContent = getEditorContent;
 
 console.warn('Using editor.js compatibility layer - consider updating your imports to use the modular structure directly');
+
+// Initialize editor if it exists on the page
+document.addEventListener('DOMContentLoaded', () => {
+    const editor = document.getElementById('editor');
+    if (editor) {
+        initializePageEditor(editor);
+    }
+});
 
 const editor = document.getElementById('editor');
 let blockIdCounter = 0; // Simple counter for unique IDs

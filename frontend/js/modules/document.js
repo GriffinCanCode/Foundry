@@ -5,7 +5,11 @@
 import { appState } from '../core/app-core.js';
 import { renderDocumentList } from './ui.js';
 import { showNotification } from '../utils/notifications.js';
-import { createBlockElement } from './blocks.js';
+import { 
+    initializePageEditor, 
+    getEditorContent, 
+    createNewEmptyDocument 
+} from './page-editor.js';
 import { 
   initializeDocumentStorage,
   saveDocument, 
@@ -85,9 +89,6 @@ export function renderDocument(docData) {
     const editor = document.getElementById('editor');
     if (!editor) return;
     
-    // Clear the editor
-    editor.innerHTML = '';
-    
     // Set document title
     const titleElement = document.getElementById('document-title');
     if (titleElement) {
@@ -101,31 +102,40 @@ export function renderDocument(docData) {
         });
     }
     
-    // If document has content, render it
+    // Clear the editor and prepare the content
+    editor.innerHTML = '';
+    
+    // Initialize the page editor
+    initializePageEditor(editor);
+    
+    // If document has content, add it to the editor
     if (docData.content && docData.content.length > 0) {
-        docData.content.forEach(block => {
-            const blockElement = createBlockElement(block.type, block.content);
-            editor.appendChild(blockElement);
+        // Import blocks module dynamically to avoid circular dependencies
+        import('./blocks.js').then(blocksModule => {
+            const { createBlockElement } = blocksModule;
             
-            // If block has additional properties, apply them
-            if (block.type === 'todo' && block.checked) {
-                const checkbox = blockElement.querySelector('.todo-checkbox');
-                if (checkbox) {
-                    checkbox.checked = true;
-                    blockElement.querySelector('.todo-text').classList.add('line-through');
+            docData.content.forEach(block => {
+                const blockElement = createBlockElement(block.type, block.content);
+                editor.appendChild(blockElement);
+                
+                // If block has additional properties, apply them
+                if (block.type === 'todo' && block.checked) {
+                    const checkbox = blockElement.querySelector('.todo-checkbox');
+                    if (checkbox) {
+                        checkbox.checked = true;
+                        blockElement.querySelector('.todo-text').classList.add('line-through');
+                    }
                 }
-            }
+                
+                // Add database ID if present
+                if (block.type === 'database' && block.databaseId) {
+                    blockElement.dataset.databaseId = block.databaseId;
+                }
+            });
         });
     } else {
-        // If document is empty, add a default text block
-        const blockElement = createBlockElement('text', '');
-        editor.appendChild(blockElement);
-        
-        // Focus the block
-        const editable = blockElement.querySelector('[contenteditable=true]');
-        if (editable) {
-            setTimeout(() => editable.focus(), 0);
-        }
+        // If document is empty, create a new empty document with default block
+        createNewEmptyDocument();
     }
 }
 
@@ -137,45 +147,11 @@ export function saveCurrentDocument(silent = false) {
         return;
     }
     
-    // Get content from editor
-    const editor = document.getElementById('editor');
-    if (!editor) return;
-    
     // Get document title
     const title = document.getElementById('document-title')?.textContent || 'Untitled';
     
-    // Collect content from editor blocks
-    const content = [];
-    editor.querySelectorAll('.block-container').forEach(block => {
-        // Determine block type
-        const type = block.classList.contains('todo-block-container') ? 'todo' :
-                  block.querySelector('.heading-block') ? 'heading' :
-                  block.querySelector('.list-block') ? 'list' :
-                  block.querySelector('.quote-block') ? 'quote' :
-                  block.querySelector('.code-block') ? 'code' :
-                  block.querySelector('.database-block-container') ? 'database' : 'text';
-        
-        // Get content based on type
-        let blockContent = '';
-        let additionalProps = {};
-        
-        if (type === 'todo') {
-            blockContent = block.querySelector('.todo-text')?.textContent || '';
-            additionalProps.checked = block.querySelector('.todo-checkbox')?.checked || false;
-        } else if (type === 'database') {
-            blockContent = block.querySelector('h3')?.textContent || 'Database';
-        } else {
-            const editable = block.querySelector('.editable-block');
-            if (editable) blockContent = editable.textContent || '';
-        }
-        
-        // Push block data to content array
-        content.push({
-            type,
-            content: blockContent,
-            ...additionalProps
-        });
-    });
+    // Get content from editor using the page-editor module
+    const content = getEditorContent();
     
     // Update document properties
     appState.currentDocument.title = title;
@@ -256,17 +232,13 @@ export function exportCurrentDocument() {
 
 // Export all documents
 export function exportAllDocuments() {
-    // Check if there are documents
-    if (appState.documentList.length === 0) {
-        showNotification('No documents to export', 'error');
-        return;
+    // Save current document first
+    if (appState.currentDocument) {
+        saveCurrentDocument(true);
     }
     
-    // Get all document IDs
-    const documentIds = appState.documentList.map(doc => doc.id);
-    
     // Export all documents
-    exportDocumentsToFile(documentIds)
+    exportDocumentsToFile()
         .then(() => {
             showNotification('All documents exported', 'success');
         })
@@ -276,69 +248,54 @@ export function exportAllDocuments() {
         });
 }
 
-// Import documents
+// Import documents from file
 export function importDocuments(file) {
     if (!file) {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.json';
-        
-        input.onchange = (e) => {
-            if (e.target.files && e.target.files[0]) {
-                _importDocumentsFromFile(e.target.files[0]);
-            }
-        };
-        
-        input.click();
-    } else {
-        _importDocumentsFromFile(file);
+        showNotification('No file selected', 'error');
+        return;
     }
-}
-
-// Helper for importing documents
-function _importDocumentsFromFile(file) {
-    importDocumentsFromFile(file)
-        .then(importedIds => {
-            // Refresh document list
+    
+    _importDocumentsFromFile(file)
+        .then(result => {
+            showNotification(`Imported ${result.count} documents`, 'success');
             loadDocumentList();
-            
-            showNotification(`Imported ${importedIds.length} document(s)`, 'success');
         })
         .catch(error => {
             console.error('Error importing documents:', error);
-            showNotification('Failed to import documents: ' + error.message, 'error');
+            showNotification('Failed to import documents', 'error');
         });
 }
 
-// Load document list from storage
+// Private helper function for importing
+function _importDocumentsFromFile(file) {
+    return new Promise((resolve, reject) => {
+        importDocumentsFromFile(file)
+            .then(result => {
+                resolve(result);
+            })
+            .catch(reject);
+    });
+}
+
+// Load document list
 export function loadDocumentList() {
-    listDocumentsFromStorage({ workspaceId: appState.currentWorkspace?.id })
+    listDocumentsFromStorage()
         .then(documents => {
             appState.documentList = documents;
             renderDocumentList();
         })
         .catch(error => {
             console.error('Error loading document list:', error);
-            showNotification('Failed to load documents', 'error');
         });
 }
 
-// Search for documents
+// Search documents by content
 export function searchDocumentsByContent(query) {
     return searchDocuments(query);
 }
 
-// Deprecated: Old function to save document list to localStorage
-// Kept for backward compatibility, will be removed in future versions
+// Helper function to save document list
 function saveDocumentList() {
-    console.warn('saveDocumentList is deprecated, documents are saved individually now');
-    
-    // Save each document in the list
-    if (appState.documentList && appState.documentList.length > 0) {
-        appState.documentList.forEach(doc => {
-            saveDocument(doc, { silent: true }).catch(err => {
-                console.error('Error saving document during list save:', err);
-            });
-        });
-    }
+    // This is a placeholder for potential future implementation
+    // Currently documents are saved individually
 } 

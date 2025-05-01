@@ -38,11 +38,14 @@ import {
     showSettingsDialog 
 } from './modules/dialogs.js';
 import { 
+    initializePageEditor,
     showBlockMenu, 
     hideBlockMenu, 
     addBlock,
-    addDatabaseBlock
-} from './modules/blocks.js';
+    addDatabaseBlock,
+    transformBlock,
+    getEditorContent
+} from './modules/page-editor.js';
 import { initializeOptimizerIntegration } from './utils/optimizer-integration.js';
 
 // Initialize the application when the DOM is loaded
@@ -50,6 +53,13 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM loaded, initializing app via compatibility layer...');
     initializeApp();
     setupEventListeners();
+    
+    // Initialize the page editor if present
+    const editorElement = document.getElementById('editor');
+    if (editorElement) {
+        initializePageEditor(editorElement);
+        console.log('Page editor initialized');
+    }
     
     // Initialize performance optimizations
     initializeOptimizerIntegration();
@@ -81,5 +91,8 @@ window.showBlockMenu = showBlockMenu;
 window.hideBlockMenu = hideBlockMenu;
 window.addBlock = addBlock;
 window.addDatabaseBlock = addDatabaseBlock;
+window.initializePageEditor = initializePageEditor;
+window.transformBlock = transformBlock;
+window.getEditorContent = getEditorContent;
 
 console.warn('Using app.js compatibility layer - consider updating your imports to use the modular structure directly');
