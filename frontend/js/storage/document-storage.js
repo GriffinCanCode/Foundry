@@ -15,6 +15,8 @@ import {
   StorageStrategy
 } from './storage-manager.js';
 
+import { appState } from '../core/app-core.js';
+
 // Store type for documents
 const STORE_TYPE = 'documents';
 
@@ -39,6 +41,33 @@ export async function saveDocument(document, options = {}) {
   document.updatedAt = new Date().toISOString();
   if (!document.createdAt) {
     document.createdAt = document.updatedAt;
+  }
+  
+  // Ensure workspace association is properly set
+  if (!document.workspaceId && appState.currentWorkspace) {
+    document.workspaceId = appState.currentWorkspace.id;
+  }
+
+  // Validate content structure before saving
+  if (document.content && Array.isArray(document.content)) {
+    // Ensure each block has required properties
+    document.content = document.content.map(block => {
+      // Make sure each block has the necessary properties
+      if (!block.id) {
+        block.id = 'block_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+      }
+      
+      if (!block.createdAt) {
+        block.createdAt = new Date().toISOString();
+      }
+      
+      block.updatedAt = new Date().toISOString();
+      
+      // Ensure workspace association is present in each block
+      block.workspaceId = document.workspaceId;
+      
+      return block;
+    });
   }
   
   return await saveData(STORE_TYPE, document, options);

@@ -114,6 +114,195 @@ export async function selectWorkspace(id) {
   }
 }
 
+// Edit a workspace
+export async function editWorkspace(id) {
+  try {
+    // Load workspace from storage
+    const workspace = await loadWorkspaceFromStorage(id);
+    if (!workspace) {
+      throw new Error('Workspace not found');
+    }
+    
+    // Create the edit workspace modal HTML
+    const modalHTML = `
+    <div id="edit-workspace-modal" class="fixed inset-0 bg-surface-900 bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-xl p-6 max-w-md w-full">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-display font-semibold text-surface-900">Edit Workspace</h3>
+                <button id="close-edit-workspace-modal" class="p-2 rounded-lg hover:bg-surface-100 text-surface-500 hover:text-surface-700 transition-colors">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            
+            <form id="edit-workspace-form">
+                <div class="mb-4">
+                    <label for="edit-workspace-name" class="block text-surface-700 mb-2">Workspace Name</label>
+                    <input type="text" id="edit-workspace-name" class="w-full px-3 py-2 border border-surface-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent" placeholder="My Workspace" value="${workspace.name}" required>
+                </div>
+                
+                <div class="mb-6">
+                    <label for="edit-workspace-description" class="block text-surface-700 mb-2">Description (Optional)</label>
+                    <textarea id="edit-workspace-description" class="w-full px-3 py-2 border border-surface-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent" rows="3" placeholder="What's this workspace for?">${workspace.description || ''}</textarea>
+                </div>
+                
+                <input type="hidden" id="edit-workspace-id" value="${workspace.id}">
+                
+                <div class="flex justify-end">
+                    <button type="button" id="cancel-workspace-edit" class="px-4 py-2 mr-2 border border-surface-300 text-surface-700 rounded-lg hover:bg-surface-100 transition-colors">Cancel</button>
+                    <button type="submit" class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    `;
+    
+    // Add modal to body
+    const modalContainer = document.createElement('div');
+    modalContainer.innerHTML = modalHTML;
+    const modalElement = modalContainer.firstChild;
+    document.body.appendChild(modalElement);
+    
+    // Initialize icons
+    if (window.lucide) {
+      lucide.createIcons();
+    }
+    
+    // Set up event handlers
+    const closeModal = () => {
+      const modal = document.getElementById('edit-workspace-modal');
+      if (modal) {
+        // Add fade-out animation
+        modal.classList.add('opacity-0');
+        setTimeout(() => {
+          if (modal.parentNode) {
+            modal.parentNode.removeChild(modal);
+          }
+        }, 300);
+      }
+    };
+    
+    const handleFormSubmit = async (e) => {
+      e.preventDefault();
+      
+      const nameInput = document.getElementById('edit-workspace-name');
+      const descriptionInput = document.getElementById('edit-workspace-description');
+      const idInput = document.getElementById('edit-workspace-id');
+      
+      if (!nameInput || !idInput) {
+        showNotification('Form fields not found', 'error');
+        return;
+      }
+      
+      const workspaceId = idInput.value;
+      const name = nameInput.value.trim();
+      const description = descriptionInput ? descriptionInput.value.trim() : '';
+      
+      if (!name) {
+        showNotification('Workspace name is required', 'error');
+        return;
+      }
+      
+      try {
+        // Show loading state
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<div class="inline-block animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div> Saving...';
+        
+        // Get the workspace from storage
+        const workspace = await loadWorkspaceFromStorage(workspaceId);
+        if (!workspace) {
+          throw new Error('Workspace not found');
+        }
+        
+        // Update workspace
+        workspace.name = name;
+        workspace.description = description;
+        workspace.updated = new Date().toISOString();
+        
+        // Save to storage
+        await saveWorkspaceToStorage(workspace);
+        
+        // Update app state
+        const index = appState.workspaceList.findIndex(w => w.id === workspaceId);
+        if (index !== -1) {
+          appState.workspaceList[index] = workspace;
+        }
+        
+        // If this is the current workspace, update it
+        if (appState.currentWorkspace && appState.currentWorkspace.id === workspaceId) {
+          appState.currentWorkspace = workspace;
+        }
+        
+        // Update UI
+        import('./ui.js').then(module => {
+          module.renderDatabaseList();
+          if (appState.currentWorkspace && appState.currentWorkspace.id === workspaceId) {
+            module.updateWorkspaceUI();
+          }
+        });
+        
+        showNotification('Workspace updated successfully', 'success');
+        closeModal();
+      } catch (error) {
+        console.error('Error updating workspace:', error);
+        showNotification('Failed to update workspace', 'error');
+        
+        // Reset submit button
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = 'Save Changes';
+        }
+      }
+    };
+    
+    // Attach event listeners using best practices
+    const form = document.getElementById('edit-workspace-form');
+    if (form) {
+      form.addEventListener('submit', handleFormSubmit);
+    }
+    
+    const closeBtn = document.getElementById('close-edit-workspace-modal');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        closeModal();
+      });
+    }
+    
+    const cancelBtn = document.getElementById('cancel-workspace-edit');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        closeModal();
+      });
+    }
+    
+    // Also allow closing with ESC key
+    const escKeyHandler = (e) => {
+      if (e.key === 'Escape') {
+        closeModal();
+        document.removeEventListener('keydown', escKeyHandler);
+      }
+    };
+    document.addEventListener('keydown', escKeyHandler);
+    
+    // Focus on the name input
+    setTimeout(() => {
+      const nameInput = document.getElementById('edit-workspace-name');
+      if (nameInput) {
+        nameInput.focus();
+        nameInput.select();
+      }
+    }, 100);
+    
+  } catch (error) {
+    console.error('Error editing workspace:', error);
+    showNotification('Failed to edit workspace', 'error');
+  }
+}
+
 // Show workspace selection screen
 export function showWorkspaceSelection() {
   // Create the workspace selection screen HTML

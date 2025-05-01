@@ -2,257 +2,274 @@
  * settings.js - Application settings management
  */
 
-import { appState } from '../core/app-core.js';
-import { showNotification } from '../utils/notifications.js';
-import { closeModal } from '../utils/modals.js';
-import { 
-    initializeSettingsStorage, 
-    loadSettings as loadSettingsFromStorage, 
-    saveSettings as saveSettingsToStorage,
-    updateSettings,
-    getSetting,
-    setSetting,
-    resetSettings
-} from '../storage/settings-storage.js';
-import { StorageStrategy, initializeStorage } from '../storage/storage-manager.js';
+import { appState } from "../core/app-core.js";
+import { showNotification } from "../utils/notifications.js";
+import { closeModal } from "../utils/modals.js";
+import {
+  initializeSettingsStorage,
+  loadSettings as loadSettingsFromStorage,
+  saveSettings as saveSettingsToStorage,
+  updateSettings,
+  getSetting,
+  setSetting,
+  resetSettings,
+} from "../storage/settings-storage.js";
+import {
+  StorageStrategy,
+  initializeStorage,
+} from "../storage/storage-manager.js";
 
 // Initialize settings storage when module is imported
-initializeSettingsStorage().catch(error => {
-    console.error('Failed to initialize settings storage:', error);
+initializeSettingsStorage().catch((error) => {
+  console.error("Failed to initialize settings storage:", error);
 });
 
 // Load user settings from backend
 export async function loadSettings() {
-    try {
-        const settings = await loadSettingsFromStorage();
-        
-        if (settings) {
-            appState.settings = { ...appState.settings, ...settings };
-            
-            // Apply dark mode if enabled
-            if (appState.settings.darkMode) {
-                document.documentElement.classList.add('dark-mode');
-            }
-            
-            // Setup autosave if enabled
-            if (appState.settings.autoSave) {
-                setupAutoSave();
-            }
-            
-            return settings;
-        } else {
-            console.error('Error loading settings');
-            
-            // Default to system preference for dark mode
-            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                appState.settings.darkMode = true;
-                document.documentElement.classList.add('dark-mode');
-            }
-            
-            return appState.settings;
-        }
-    } catch (err) {
-        console.error('Error loading settings:', err);
-        
-        // Default to system preference for dark mode
-        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            appState.settings.darkMode = true;
-            document.documentElement.classList.add('dark-mode');
-        }
-        
-        return appState.settings;
+  try {
+    const settings = await loadSettingsFromStorage();
+
+    if (settings) {
+      appState.settings = { ...appState.settings, ...settings };
+
+      // Apply dark mode if enabled
+      if (appState.settings.darkMode) {
+        document.documentElement.classList.add("dark-mode");
+      }
+
+      // Setup autosave if enabled
+      if (appState.settings.autoSave) {
+        setupAutoSave();
+      }
+
+      return settings;
+    } else {
+      console.error("Error loading settings");
+
+      // Default to system preference for dark mode
+      if (
+        window.matchMedia &&
+        window.matchMedia("(prefers-color-scheme: dark)").matches
+      ) {
+        appState.settings.darkMode = true;
+        document.documentElement.classList.add("dark-mode");
+      }
+
+      return appState.settings;
     }
+  } catch (err) {
+    console.error("Error loading settings:", err);
+
+    // Default to system preference for dark mode
+    if (
+      window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches
+    ) {
+      appState.settings.darkMode = true;
+      document.documentElement.classList.add("dark-mode");
+    }
+
+    return appState.settings;
+  }
 }
 
 // Save user settings to backend
 export async function saveSettings(settings = appState.settings) {
-    try {
-        const result = await saveSettingsToStorage(settings);
-        
-        if (result.success) {
-            // Update app state with the returned settings
-            appState.settings = { ...appState.settings, ...settings };
-            return true;
-        } else {
-            console.error('Error saving settings');
-            return false;
-        }
-    } catch (err) {
-        console.error('Error saving settings:', err);
-        return false;
+  try {
+    const result = await saveSettingsToStorage(settings);
+
+    if (result.success) {
+      // Update app state with the returned settings
+      appState.settings = { ...appState.settings, ...settings };
+      return true;
+    } else {
+      console.error("Error saving settings");
+      return false;
     }
+  } catch (err) {
+    console.error("Error saving settings:", err);
+    return false;
+  }
 }
 
 // Apply theme (light/dark) based on settings
 export function applyTheme() {
-    if (appState.settings.darkMode) {
-        document.documentElement.classList.add('dark-mode');
-    } else {
-        document.documentElement.classList.remove('dark-mode');
-    }
+  if (appState.settings.darkMode) {
+    document.documentElement.classList.add("dark-mode");
+  } else {
+    document.documentElement.classList.remove("dark-mode");
+  }
 }
 
 // Setup autosave functionality
 export function setupAutoSave() {
-    // Clear any existing timer
-    if (appState.autoSaveTimer) {
-        clearInterval(appState.autoSaveTimer);
-    }
-    
-    // If autosave is enabled, set up the timer
-    if (appState.settings.autoSave) {
-        const interval = appState.settings.autoSaveInterval * 1000; // Convert to milliseconds
-        appState.autoSaveTimer = setInterval(() => {
-            if (appState.currentDocument) {
-                // Using dynamic import to avoid circular dependencies
-                import('./document.js').then(module => {
-                    module.saveCurrentDocument(true); // Silent save
-                });
-            }
-        }, interval);
-    }
+  // Clear any existing timer
+  if (appState.autoSaveTimer) {
+    clearInterval(appState.autoSaveTimer);
+  }
+
+  // If autosave is enabled, set up the timer
+  if (appState.settings.autoSave) {
+    const interval = appState.settings.autoSaveInterval * 1000; // Convert to milliseconds
+    appState.autoSaveTimer = setInterval(() => {
+      if (appState.currentDocument) {
+        // Using dynamic import to avoid circular dependencies
+        import("./document.js").then((module) => {
+          module.saveCurrentDocument(true); // Silent save
+        });
+      }
+    }, interval);
+  }
 }
 
 // Reinitialize storage system with new settings
 export async function reinitializeStorage(settings) {
-    try {
-        // Extract storage-related settings
-        const storageConfig = {
-            strategy: settings.syncStrategy || StorageStrategy.HYBRID,
-            autoSync: settings.autoSync !== false,
-            enableCompression: settings.enableCompression || false,
-            enableEncryption: settings.enableEncryption || false
-        };
-        
-        // Reinitialize storage with new config
-        await initializeStorage(storageConfig);
-        
-        console.log('Storage system reinitialized with new settings');
-        return true;
-    } catch (error) {
-        console.error('Failed to reinitialize storage system:', error);
-        return false;
-    }
+  try {
+    // Extract storage-related settings
+    const storageConfig = {
+      strategy: settings.syncStrategy || StorageStrategy.HYBRID,
+      autoSync: settings.autoSync !== false,
+      enableCompression: settings.enableCompression || false,
+      enableEncryption: settings.enableEncryption || false,
+    };
+
+    // Reinitialize storage with new config
+    await initializeStorage(storageConfig);
+
+    console.log("Storage system reinitialized with new settings");
+    return true;
+  } catch (error) {
+    console.error("Failed to reinitialize storage system:", error);
+    return false;
+  }
 }
 
 // Settings hook - provides access to settings and methods to update them
 export function useSettings() {
-    return {
-        // Get current settings
-        getSettings: () => ({ ...appState.settings }),
-        
-        // Update a single setting
-        updateSetting: async (key, value) => {
-            // Update app state immediately for responsive UI
-            appState.settings[key] = value;
-            
-            // Apply theme if darkMode was updated
-            if (key === 'darkMode') {
-                applyTheme();
-            }
-            
-            // Update autosave timer if autoSave or interval was changed
-            if (key === 'autoSave' || key === 'autoSaveInterval') {
-                setupAutoSave();
-            }
-            
-            // Reinitialize storage if storage settings changed
-            if (key === 'syncStrategy' || key === 'autoSync' || 
-                key === 'enableCompression' || key === 'enableEncryption') {
-                await reinitializeStorage(appState.settings);
-            }
-            
-            // Save to storage
-            const result = await setSetting(key, value);
-            return !!result;
-        },
-        
-        // Update multiple settings at once
-        updateSettings: async (newSettings) => {
-            // Update app state immediately for responsive UI
-            appState.settings = {
-                ...appState.settings,
-                ...newSettings
-            };
-            
-            // Apply theme if darkMode was updated
-            if ('darkMode' in newSettings) {
-                applyTheme();
-            }
-            
-            // Update autosave timer if autoSave or interval was changed
-            if ('autoSave' in newSettings || 'autoSaveInterval' in newSettings) {
-                setupAutoSave();
-            }
-            
-            // Reinitialize storage if storage settings changed
-            if ('syncStrategy' in newSettings || 'autoSync' in newSettings || 
-                'enableCompression' in newSettings || 'enableEncryption' in newSettings) {
-                await reinitializeStorage(appState.settings);
-            }
-            
-            // Save to storage
-            const result = await updateSettings(newSettings);
-            return !!result;
-        },
-        
-        // Reset settings to defaults
-        resetSettings: async () => {
-            // Reset settings in storage
-            const defaultSettings = await resetSettings();
-            
-            // Update app state
-            appState.settings = defaultSettings;
-            
-            // Apply theme
-            applyTheme();
-            
-            // Setup autosave
-            setupAutoSave();
-            
-            // Reinitialize storage
-            await reinitializeStorage(defaultSettings);
-            
-            return true;
-        }
-    };
+  return {
+    // Get current settings
+    getSettings: () => ({ ...appState.settings }),
+
+    // Update a single setting
+    updateSetting: async (key, value) => {
+      // Update app state immediately for responsive UI
+      appState.settings[key] = value;
+
+      // Apply theme if darkMode was updated
+      if (key === "darkMode") {
+        applyTheme();
+      }
+
+      // Update autosave timer if autoSave or interval was changed
+      if (key === "autoSave" || key === "autoSaveInterval") {
+        setupAutoSave();
+      }
+
+      // Reinitialize storage if storage settings changed
+      if (
+        key === "syncStrategy" ||
+        key === "autoSync" ||
+        key === "enableCompression" ||
+        key === "enableEncryption"
+      ) {
+        await reinitializeStorage(appState.settings);
+      }
+
+      // Save to storage
+      const result = await setSetting(key, value);
+      return !!result;
+    },
+
+    // Update multiple settings at once
+    updateSettings: async (newSettings) => {
+      // Update app state immediately for responsive UI
+      appState.settings = {
+        ...appState.settings,
+        ...newSettings,
+      };
+
+      // Apply theme if darkMode was updated
+      if ("darkMode" in newSettings) {
+        applyTheme();
+      }
+
+      // Update autosave timer if autoSave or interval was changed
+      if ("autoSave" in newSettings || "autoSaveInterval" in newSettings) {
+        setupAutoSave();
+      }
+
+      // Reinitialize storage if storage settings changed
+      if (
+        "syncStrategy" in newSettings ||
+        "autoSync" in newSettings ||
+        "enableCompression" in newSettings ||
+        "enableEncryption" in newSettings
+      ) {
+        await reinitializeStorage(appState.settings);
+      }
+
+      // Save to storage
+      const result = await updateSettings(newSettings);
+      return !!result;
+    },
+
+    // Reset settings to defaults
+    resetSettings: async () => {
+      // Reset settings in storage
+      const defaultSettings = await resetSettings();
+
+      // Update app state
+      appState.settings = defaultSettings;
+
+      // Apply theme
+      applyTheme();
+
+      // Setup autosave
+      setupAutoSave();
+
+      // Reinitialize storage
+      await reinitializeStorage(defaultSettings);
+
+      return true;
+    },
+  };
 }
 
 // Named event handler functions for the settings modal
 const modalEventHandlers = {
-    closeModal: null,
-    cancelSettings: null,
-    saveSettings: null,
-    exportData: null,
-    importData: null
+  closeModal: null,
+  cancelSettings: null,
+  saveSettings: null,
+  exportData: null,
+  importData: null,
 };
 
 // Remove any existing settings modal event listeners
 function removeSettingsModalListeners() {
-    // Clean up any existing modal with the same ID
-    const existingModal = document.getElementById('settings-modal');
-    if (existingModal) {
-        console.log('Found existing settings modal, removing it');
-        existingModal.parentNode.removeChild(existingModal);
-    }
-    
-    // Clean up document-level event delegation
-    document.removeEventListener('click', modalEventHandlers.closeModal);
-    document.removeEventListener('click', modalEventHandlers.cancelSettings);
-    document.removeEventListener('click', modalEventHandlers.saveSettings);
-    document.removeEventListener('click', modalEventHandlers.exportData);
-    document.removeEventListener('click', modalEventHandlers.importData);
+  // Clean up any existing modal with the same ID
+  const existingModal = document.getElementById("settings-modal");
+  if (existingModal) {
+    console.log("Found existing settings modal, removing it");
+    existingModal.parentNode.removeChild(existingModal);
+  }
+
+  // Clean up document-level event delegation
+  document.removeEventListener("click", modalEventHandlers.closeModal);
+  document.removeEventListener("click", modalEventHandlers.cancelSettings);
+  document.removeEventListener("click", modalEventHandlers.saveSettings);
+  document.removeEventListener("click", modalEventHandlers.exportData);
+  document.removeEventListener("click", modalEventHandlers.importData);
 }
 
 // Show settings dialog
 export function showSettingsDialog() {
-    console.log('Opening settings dialog from settings.js');
-    
-    // First, clean up any existing modal
-    removeSettingsModalListeners();
-    
-    // Create modal for settings
-    const modalHTML = `
+  console.log("Opening settings dialog from settings.js");
+
+  // First, clean up any existing modal
+  removeSettingsModalListeners();
+
+  // Create modal for settings
+  const modalHTML = `
     <div id="settings-modal" class="fixed inset-0 bg-surface-900 bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 opacity-0 transition-opacity duration-300">
         <div class="bg-white rounded-xl shadow-xl p-6 max-w-md w-full transform transition-all duration-300 scale-95 dark-mode:bg-surface-800">
             <div class="flex justify-between items-center mb-6">
@@ -348,135 +365,157 @@ export function showSettingsDialog() {
         </div>
     </div>
     `;
-    
-    // Add modal to the body
-    const modalContainer = document.createElement('div');
-    modalContainer.innerHTML = modalHTML;
-    document.body.appendChild(modalContainer);
-    
-    const modal = document.getElementById('settings-modal');
-    
-    // Animate in
-    setTimeout(() => {
-        modal.classList.add('opacity-100');
-        const modalContent = modal.querySelector('div > div');
-        if (modalContent) modalContent.classList.add('scale-100');
-    }, 10);
-    
-    // Set initial state for dark mode toggle
-    document.getElementById('dark-mode-toggle').checked = appState.settings.darkMode;
-    
-    // Set initial state for autosave toggle and interval
-    document.getElementById('autosave-toggle').checked = appState.settings.autoSave;
-    document.getElementById('autosave-interval').value = appState.settings.autoSaveInterval;
-    
-    // Set initial state for storage options
-    const storageStrategySelect = document.getElementById('storage-strategy');
-    if (storageStrategySelect) {
-        storageStrategySelect.value = appState.settings.syncStrategy || StorageStrategy.HYBRID;
+
+  // Add modal to the body
+  const modalContainer = document.createElement("div");
+  modalContainer.innerHTML = modalHTML;
+  document.body.appendChild(modalContainer);
+
+  const modal = document.getElementById("settings-modal");
+
+  // Animate in
+  setTimeout(() => {
+    modal.classList.add("opacity-100");
+    const modalContent = modal.querySelector("div > div");
+    if (modalContent) modalContent.classList.add("scale-100");
+  }, 10);
+
+  // Set initial state for dark mode toggle
+  document.getElementById("dark-mode-toggle").checked =
+    appState.settings.darkMode;
+
+  // Set initial state for autosave toggle and interval
+  document.getElementById("autosave-toggle").checked =
+    appState.settings.autoSave;
+  document.getElementById("autosave-interval").value =
+    appState.settings.autoSaveInterval;
+
+  // Set initial state for storage options
+  const storageStrategySelect = document.getElementById("storage-strategy");
+  if (storageStrategySelect) {
+    storageStrategySelect.value =
+      appState.settings.syncStrategy || StorageStrategy.HYBRID;
+  }
+
+  const autoSyncToggle = document.getElementById("autosync-toggle");
+  if (autoSyncToggle) {
+    autoSyncToggle.checked = appState.settings.autoSync !== false;
+  }
+
+  // Define event handler functions with proper binding to use as references
+  const handleCloseModal = function (e) {
+    if (
+      e.target.id === "close-settings-modal" ||
+      e.target.closest("#close-settings-modal")
+    ) {
+      console.log("Close modal button clicked");
+      e.preventDefault();
+      closeModal(modal);
     }
-    
-    const autoSyncToggle = document.getElementById('autosync-toggle');
-    if (autoSyncToggle) {
-        autoSyncToggle.checked = appState.settings.autoSync !== false;
+  };
+
+  const handleCancelSettings = function (e) {
+    if (
+      e.target.id === "settings-cancel-btn" ||
+      e.target.closest("#settings-cancel-btn")
+    ) {
+      console.log("Cancel button clicked");
+      e.preventDefault();
+      closeModal(modal);
     }
-    
-    // Define event handler functions with proper binding to use as references
-    const handleCloseModal = function(e) {
-        if (e.target.id === 'close-settings-modal' || e.target.closest('#close-settings-modal')) {
-            console.log('Close modal button clicked');
-            e.preventDefault();
-            closeModal(modal);
-        }
-    };
+  };
 
-    const handleCancelSettings = function(e) {
-        if (e.target.id === 'settings-cancel-btn' || e.target.closest('#settings-cancel-btn')) {
-            console.log('Cancel button clicked');
-            e.preventDefault();
-            closeModal(modal);
-        }
-    };
+  const handleSaveSettings = async function (e) {
+    if (
+      e.target.id === "settings-save-btn" ||
+      e.target.closest("#settings-save-btn")
+    ) {
+      console.log("Save button clicked");
+      e.preventDefault();
 
-    const handleSaveSettings = async function(e) {
-        if (e.target.id === 'settings-save-btn' || e.target.closest('#settings-save-btn')) {
-            console.log('Save button clicked');
-            e.preventDefault();
-            
-            const darkModeToggle = document.getElementById('dark-mode-toggle');
-            const autoSaveToggle = document.getElementById('autosave-toggle');
-            const autoSaveInterval = document.getElementById('autosave-interval');
-            const storageStrategy = document.getElementById('storage-strategy');
-            const autoSyncToggle = document.getElementById('autosync-toggle');
-            
-            if (!darkModeToggle || !autoSaveToggle || !autoSaveInterval || !storageStrategy || !autoSyncToggle) {
-                console.error('Could not find required form elements');
-                return;
-            }
-            
-            const darkMode = darkModeToggle.checked;
-            const autoSave = autoSaveToggle.checked;
-            const interval = parseInt(autoSaveInterval.value, 10);
-            const syncStrategy = storageStrategy.value;
-            const autoSync = autoSyncToggle.checked;
-            
-            // Get the settings hook
-            const { updateSettings } = useSettings();
-            
-            // Update all settings at once
-            const success = await updateSettings({
-                darkMode,
-                autoSave,
-                autoSaveInterval: interval,
-                syncStrategy,
-                autoSync
-            });
-            
-            if (success) {
-                showNotification('Settings saved', 'success');
-            } else {
-                showNotification('Failed to save settings', 'error');
-            }
-            
-            closeModal(modal);
-        }
-    };
+      const darkModeToggle = document.getElementById("dark-mode-toggle");
+      const autoSaveToggle = document.getElementById("autosave-toggle");
+      const autoSaveInterval = document.getElementById("autosave-interval");
+      const storageStrategy = document.getElementById("storage-strategy");
+      const autoSyncToggle = document.getElementById("autosync-toggle");
 
-    const handleExportData = function(e) {
-        if (e.target.id === 'export-all-data' || e.target.closest('#export-all-data')) {
-            console.log('Export data button clicked');
-            e.preventDefault();
-            import('./document.js').then(module => {
-                module.exportAllDocuments();
-            });
-        }
-    };
+      if (
+        !darkModeToggle ||
+        !autoSaveToggle ||
+        !autoSaveInterval ||
+        !storageStrategy ||
+        !autoSyncToggle
+      ) {
+        console.error("Could not find required form elements");
+        return;
+      }
 
-    // Store handlers for later removal
-    modalEventHandlers.closeModal = handleCloseModal;
-    modalEventHandlers.cancelSettings = handleCancelSettings;
-    modalEventHandlers.saveSettings = handleSaveSettings;
-    modalEventHandlers.exportData = handleExportData;
-    
-    // Use event delegation for dynamic content - attach listeners to document
-    document.addEventListener('click', handleCloseModal);
-    document.addEventListener('click', handleCancelSettings);
-    document.addEventListener('click', handleSaveSettings);
-    document.addEventListener('click', handleExportData);
-    
-    // Import file requires a change event
-    const handleImportFile = function(e) {
-        if (e.target.id === 'import-file') {
-            console.log('Import file triggered');
-            import('./document.js').then(module => {
-                module.importDocuments(e.target.files[0]);
-            });
-        }
-    };
-    
-    modalEventHandlers.importData = handleImportFile;
-    document.addEventListener('change', handleImportFile);
-    
-    // For debugging
-    console.log('Settings modal initialized with event handlers');
+      const darkMode = darkModeToggle.checked;
+      const autoSave = autoSaveToggle.checked;
+      const interval = parseInt(autoSaveInterval.value, 10);
+      const syncStrategy = storageStrategy.value;
+      const autoSync = autoSyncToggle.checked;
+
+      // Get the settings hook
+      const { updateSettings } = useSettings();
+
+      // Update all settings at once
+      const success = await updateSettings({
+        darkMode,
+        autoSave,
+        autoSaveInterval: interval,
+        syncStrategy,
+        autoSync,
+      });
+
+      if (success) {
+        showNotification("Settings saved", "success");
+      } else {
+        showNotification("Failed to save settings", "error");
+      }
+
+      closeModal(modal);
+    }
+  };
+
+  const handleExportData = function (e) {
+    if (
+      e.target.id === "export-all-data" ||
+      e.target.closest("#export-all-data")
+    ) {
+      console.log("Export data button clicked");
+      e.preventDefault();
+      import("./document.js").then((module) => {
+        module.exportAllDocuments();
+      });
+    }
+  };
+
+  // Store handlers for later removal
+  modalEventHandlers.closeModal = handleCloseModal;
+  modalEventHandlers.cancelSettings = handleCancelSettings;
+  modalEventHandlers.saveSettings = handleSaveSettings;
+  modalEventHandlers.exportData = handleExportData;
+
+  // Use event delegation for dynamic content - attach listeners to document
+  document.addEventListener("click", handleCloseModal);
+  document.addEventListener("click", handleCancelSettings);
+  document.addEventListener("click", handleSaveSettings);
+  document.addEventListener("click", handleExportData);
+
+  // Import file requires a change event
+  const handleImportFile = function (e) {
+    if (e.target.id === "import-file") {
+      console.log("Import file triggered");
+      import("./document.js").then((module) => {
+        module.importDocuments(e.target.files[0]);
+      });
+    }
+  };
+
+  modalEventHandlers.importData = handleImportFile;
+  document.addEventListener("change", handleImportFile);
+
+  // For debugging
+  console.log("Settings modal initialized with event handlers");
 }

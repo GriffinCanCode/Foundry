@@ -280,24 +280,60 @@ export function renderDatabaseList() {
     appState.workspaceList.forEach(workspace => {
         const li = document.createElement('li');
         li.innerHTML = `
-            <a href="#" class="flex items-center p-2 rounded-md hover:bg-surface-100" data-workspace-id="${workspace.id}">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" 
-                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
-                     class="w-4 h-4 mr-2 text-surface-500">
-                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-                  <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-                </svg>
-                <span>${workspace.name}</span>
-            </a>
+            <div class="flex items-center justify-between p-2 rounded-md hover:bg-surface-100">
+                <a href="#" class="flex items-center flex-grow" data-workspace-id="${workspace.id}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" 
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
+                         class="w-4 h-4 mr-2 text-surface-500">
+                      <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                      <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                    </svg>
+                    <span>${workspace.name}</span>
+                </a>
+                <button class="edit-workspace-btn p-2 text-surface-400 hover:text-primary-600 rounded-md" data-workspace-id="${workspace.id}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" 
+                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" 
+                         class="w-4 h-4">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                </button>
+            </div>
         `;
         
         // Add click handler to select workspace
-        li.querySelector('a').addEventListener('click', (e) => {
+        const selectWorkspaceFn = (e) => {
             e.preventDefault();
             import('./workspace.js').then(module => {
                 module.selectWorkspace(workspace.id);
             });
-        });
+        };
+        
+        // Add edit handler for the workspace
+        const editWorkspaceFn = (e) => {
+            e.preventDefault();
+            e.stopPropagation(); // Prevent triggering the parent's click event
+            console.log('Edit workspace:', workspace.id);
+            // Import and call the edit workspace function
+            import('./workspace.js').then(module => {
+                if (typeof module.editWorkspace === 'function') {
+                    module.editWorkspace(workspace.id);
+                } else {
+                    console.warn('editWorkspace function not found in workspace.js module');
+                }
+            });
+        };
+        
+        // Add the click event listeners using addEventListener
+        const workspaceLink = li.querySelector('a');
+        if (workspaceLink) {
+            workspaceLink.addEventListener('click', selectWorkspaceFn);
+        }
+        
+        const editButton = li.querySelector('.edit-workspace-btn');
+        if (editButton) {
+            editButton.addEventListener('click', editWorkspaceFn);
+        }
         
         workplacesList.appendChild(li);
     });
@@ -355,7 +391,7 @@ export function completeWorkspaceSelection() {
 /**
  * Update UI elements to reflect the current workspace
  */
-function updateWorkspaceUI() {
+export function updateWorkspaceUI() {
     if (!appState.currentWorkspace) return;
     
     // Update title element

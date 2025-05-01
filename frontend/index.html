@@ -1,410 +1,550 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self'">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self'"
+    />
     <title>Foundry Concept</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <script src="js/lucide.min.js"></script>
-    <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="css/editor.css">
+    <link rel="stylesheet" href="css/styles.css" />
+    <link rel="stylesheet" href="css/editor.css" />
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: {
-                            50: '#f0f9ff',
-                            100: '#e0f2fe',
-                            200: '#bae6fd',
-                            300: '#7dd3fc',
-                            400: '#38bdf8',
-                            500: '#0ea5e9',
-                            600: '#0284c7',
-                            700: '#0369a1',
-                            800: '#075985',
-                            900: '#0c4a6e',
-                        },
-                        surface: {
-                            50: '#fafafa',
-                            100: '#f4f4f5',
-                            200: '#e4e4e7',
-                            300: '#d4d4d8',
-                            400: '#a1a1aa',
-                            500: '#71717a',
-                            600: '#52525b',
-                            700: '#3f3f46',
-                            800: '#27272a',
-                            900: '#18181b',
-                        }
-                    },
-                    fontFamily: {
-                        sans: ['Inter', 'system-ui', 'sans-serif'],
-                        display: ['Poppins', 'system-ui', 'sans-serif']
-                    },
-                    boxShadow: {
-                        'card': '0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.1)',
-                        'card-hover': '0 4px 6px rgba(0,0,0,0.05), 0 10px 15px rgba(0,0,0,0.1)',
-                        'dropdown': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                    }
-                }
-            }
-        }
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: {
+                50: "#f0f9ff",
+                100: "#e0f2fe",
+                200: "#bae6fd",
+                300: "#7dd3fc",
+                400: "#38bdf8",
+                500: "#0ea5e9",
+                600: "#0284c7",
+                700: "#0369a1",
+                800: "#075985",
+                900: "#0c4a6e",
+              },
+              surface: {
+                50: "#fafafa",
+                100: "#f4f4f5",
+                200: "#e4e4e7",
+                300: "#d4d4d8",
+                400: "#a1a1aa",
+                500: "#71717a",
+                600: "#52525b",
+                700: "#3f3f46",
+                800: "#27272a",
+                900: "#18181b",
+              },
+            },
+            fontFamily: {
+              sans: ["Inter", "system-ui", "sans-serif"],
+              display: ["Poppins", "system-ui", "sans-serif"],
+            },
+            boxShadow: {
+              card: "0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.1)",
+              "card-hover":
+                "0 4px 6px rgba(0,0,0,0.05), 0 10px 15px rgba(0,0,0,0.1)",
+              dropdown:
+                "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
+            },
+          },
+        },
+      };
     </script>
-</head>
-<body class="bg-surface-50 text-surface-900 font-sans">
+  </head>
+  <body class="bg-surface-50 text-surface-900 font-sans">
     <!-- Workspace Selection Screen (Hidden Initially) -->
-    <div id="workspace-selection" class="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-primary-50 to-surface-100 p-4" style="display: none;">
-        <div class="w-full max-w-2xl bg-white rounded-xl shadow-card p-8 scale-in">
-            <h1 class="text-3xl font-display font-bold mb-8 text-center text-primary-800">Welcome to Foundry</h1>
-            
-            <div class="mb-8">
-                <h2 class="text-xl font-display font-medium mb-4">Select a Workspace</h2>
-                <div id="workspace-list" class="border border-surface-200 rounded-lg divide-y divide-surface-200 overflow-hidden">
-                    <p class="p-6 text-surface-500 text-center">Loading workspaces...</p>
-                </div>
-            </div>
-            
-            <div class="flex justify-between items-center">
-                <button id="create-workspace-btn" class="px-5 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium transition-all duration-200 transform hover:translate-y-[-1px] hover:shadow-md flex items-center space-x-2">
-                    <i data-lucide="plus" class="w-4 h-4"></i>
-                    <span>Create New Workspace</span>
-                </button>
-                
-                <a href="landing.html" class="text-primary-600 hover:text-primary-700 text-sm font-medium flex items-center">
-                    <i data-lucide="arrow-left" class="w-4 h-4 mr-1"></i>
-                    Back to Home
-                </a>
-            </div>
+    <div
+      id="workspace-selection"
+      class="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-primary-50 to-surface-100 p-4"
+      style="display: none"
+    >
+      <div
+        class="w-full max-w-2xl bg-white rounded-xl shadow-card p-8 scale-in"
+      >
+        <h1
+          class="text-3xl font-display font-bold mb-8 text-center text-primary-800"
+        >
+          Welcome to Foundry
+        </h1>
+
+        <div class="mb-8">
+          <h2 class="text-xl font-display font-medium mb-4">
+            Select a Workspace
+          </h2>
+          <div
+            id="workspace-list"
+            class="border border-surface-200 rounded-lg divide-y divide-surface-200 overflow-hidden"
+          >
+            <p class="p-6 text-surface-500 text-center">
+              Loading workspaces...
+            </p>
+          </div>
         </div>
+
+        <div class="flex justify-between items-center">
+          <button
+            id="create-workspace-btn"
+            class="px-5 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 font-medium transition-all duration-200 transform hover:translate-y-[-1px] hover:shadow-md flex items-center space-x-2"
+          >
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            <span>Create New Workspace</span>
+          </button>
+
+          <a
+            href="landing.html"
+            class="text-primary-600 hover:text-primary-700 text-sm font-medium flex items-center"
+          >
+            <i data-lucide="arrow-left" class="w-4 h-4 mr-1"></i>
+            Back to Home
+          </a>
+        </div>
+      </div>
     </div>
 
     <!-- Sidebar Navigation -->
     <aside class="sidebar bg-white border-r border-surface-200">
-        <div class="flex items-center justify-between p-4 border-b border-surface-200">
-            <h1 class="text-xl font-display font-bold foundry-title text-primary-800">Foundry</h1>
-            <button id="sidebar-close" class="p-2 rounded-md hover:bg-surface-100 text-surface-500 hover:text-surface-900 transition-colors">
-                <i data-lucide="x"></i>
-            </button>
-        </div>
-        
-        <div class="p-4 space-y-3">
-            <button id="new-page-btn" class="w-full px-4 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 flex items-center justify-center space-x-2 font-medium transition duration-200 transform hover:translate-y-[-1px] shadow-sm">
-                <i data-lucide="plus" class="w-4 h-4"></i>
-                <span>New Page</span>
-            </button>
-            <button id="workspace-switcher" class="w-full px-4 py-2 border border-surface-300 bg-white text-surface-800 rounded-lg hover:bg-surface-100 flex items-center justify-center space-x-2 font-medium transition duration-200">
-                <i data-lucide="briefcase" class="w-4 h-4"></i>
-                <span>Switch Workspace</span>
-            </button>
-            <a href="landing.html" class="w-full px-4 py-2 border border-surface-300 bg-white text-surface-800 rounded-lg hover:bg-surface-100 flex items-center justify-center space-x-2 font-medium transition duration-200">
-                <i data-lucide="home" class="w-4 h-4"></i>
-                <span>Back to Home</span>
-            </a>
-        </div>
-        
-        <nav class="p-4 pt-2">
-            <div class="text-xs font-medium uppercase text-surface-500 mb-3 px-2">Pages</div>
-            <div class="bg-surface-100 h-px mb-3 mx-2"></div>
-            <ul id="pages-list" class="space-y-1">
-                <!-- Pages will be dynamically inserted here -->
-            </ul>
-        </nav>
+      <div
+        class="flex items-center justify-end p-4 border-b border-surface-200"
+      >
+        <button
+          id="sidebar-close"
+          class="p-2 rounded-md hover:bg-surface-100 text-surface-500 hover:text-surface-900 transition-colors"
+        >
+          <i data-lucide="x"></i>
+        </button>
+      </div>
 
-        <div class="p-4 pt-0">
-            <div class="text-xs font-medium uppercase text-surface-500 mb-3 px-2 mt-6">Workplaces</div>
-            <div class="bg-surface-100 h-px mb-3 mx-2"></div>
-            <ul id="workplaces-list" class="space-y-1">
-                <!-- Workplaces will be dynamically inserted here -->
-            </ul>
-            
-            <button id="manage-workplaces-btn" class="w-full text-left p-2 mt-4 text-sm text-surface-600 hover:text-primary-600 flex items-center rounded-md hover:bg-surface-100 transition-colors">
-                <i data-lucide="briefcase" class="w-4 h-4 mr-2"></i>
-                <span>Manage Workplaces</span>
-            </button>
+      <div class="p-4 space-y-3">
+        <button
+          id="workspace-switcher"
+          class="w-full px-4 py-2 border border-surface-300 bg-white text-surface-800 rounded-lg hover:bg-surface-100 flex items-center justify-center space-x-2 font-medium transition duration-200"
+        >
+          <i data-lucide="briefcase" class="w-4 h-4"></i>
+          <span>Switch Workspace</span>
+        </button>
+        <button
+          id="new-page-btn"
+          class="w-full px-4 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 flex items-center justify-center space-x-2 font-medium transition duration-200 transform hover:translate-y-[-1px] shadow-sm"
+        >
+          <i data-lucide="plus" class="w-4 h-4"></i>
+          <span>New Page</span>
+        </button>
+        <a
+          href="landing.html"
+          class="w-full px-4 py-2 border border-surface-300 bg-white text-surface-800 rounded-lg hover:bg-surface-100 flex items-center justify-center space-x-2 font-medium transition duration-200"
+        >
+          <i data-lucide="home" class="w-4 h-4"></i>
+          <span>Back to Home</span>
+        </a>
+      </div>
+
+      <nav class="p-4 pt-2">
+        <div class="text-xs font-medium uppercase text-surface-500 mb-3 px-2">
+          Pages
         </div>
+        <div class="bg-surface-100 h-px mb-3 mx-2"></div>
+        <ul id="pages-list" class="space-y-1">
+          <!-- Pages will be dynamically inserted here -->
+        </ul>
+      </nav>
+
+      <div class="p-4 pt-0">
+        <div
+          class="text-xs font-medium uppercase text-surface-500 mb-3 px-2 mt-6"
+        >
+          Workplaces
+        </div>
+        <div class="bg-surface-100 h-px mb-3 mx-2"></div>
+        <ul id="workplaces-list" class="space-y-1">
+          <!-- Workplaces will be dynamically inserted here -->
+        </ul>
+      </div>
     </aside>
 
     <!-- Main Content -->
-    <main class="p-6 md:p-8 min-h-screen transition-all duration-300" id="main-content">
-        <!-- Fixed sidebar toggle button -->
-        <button id="sidebar-toggle-fixed" class="sidebar-toggle-fixed" aria-label="Toggle sidebar">
-            <i data-lucide="chevron-right"></i>
-        </button>
-        
-        <!-- Top Bar -->
-        <div class="toolbar mb-8">
-            <div class="flex items-center">
-                <button id="sidebar-toggle" class="p-2 mr-2 md:hidden rounded-md hover:bg-surface-100 text-surface-500 hover:text-surface-900 transition-colors">
-                    <i data-lucide="menu"></i>
-                </button>
-                <div class="flex items-center space-x-2">
-                    <button class="toolbar-button" id="share-button">
-                        <i data-lucide="share-2"></i>
-                        <span>Share</span>
-                    </button>
-                    <button class="toolbar-button" id="settings-button">
-                        <i data-lucide="settings"></i>
-                        <span>Settings</span>
-                    </button>
-                    <button id="export-button" class="toolbar-button">
-                        <i data-lucide="download"></i>
-                        <span>Export</span>
-                    </button>
-                    <a href="landing.html" class="toolbar-button">
-                        <i data-lucide="home"></i>
-                        <span>Home</span>
-                    </a>
-                </div>
-            </div>
-            <div>
-                <button id="save-document" class="toolbar-button primary">
-                    <i data-lucide="save" class="w-4 h-4"></i>
-                    <span>Save</span>
-                </button>
-            </div>
+    <main
+      class="p-6 md:p-8 min-h-screen transition-all duration-300"
+      id="main-content"
+    >
+      <!-- Fixed sidebar toggle button -->
+      <button
+        id="sidebar-toggle-fixed"
+        class="sidebar-toggle-fixed"
+        aria-label="Toggle sidebar"
+      >
+        <i data-lucide="chevron-right"></i>
+      </button>
+
+      <!-- Top Bar -->
+      <div class="toolbar mb-8">
+        <div class="flex items-center">
+          <button
+            id="sidebar-toggle"
+            class="p-2 mr-2 md:hidden rounded-md hover:bg-surface-100 text-surface-500 hover:text-surface-900 transition-colors"
+          >
+            <i data-lucide="menu"></i>
+          </button>
+          <div class="flex items-center space-x-2">
+            <button class="toolbar-button" id="share-button">
+              <i data-lucide="share-2"></i>
+              <span>Share</span>
+            </button>
+            <button class="toolbar-button" id="settings-button">
+              <i data-lucide="settings"></i>
+              <span>Settings</span>
+            </button>
+            <button id="export-button" class="toolbar-button">
+              <i data-lucide="download"></i>
+              <span>Export</span>
+            </button>
+            <a href="landing.html" class="toolbar-button">
+              <i data-lucide="home"></i>
+              <span>Home</span>
+            </a>
+          </div>
         </div>
-        
-        <!-- Document Content Area -->
-        <div class="foundry-container">
-            <input type="text" id="document-title" placeholder="Untitled" class="document-title"/>
-            
-            <div class="content-area mb-6">
-                <div id="editor" class="space-y-4 min-h-[300px]">
-                    <!-- Editor blocks will be inserted here -->
-                </div>
-                
-                <div class="add-block-menu">
-                    <span class="text-sm font-medium text-surface-600 mr-4 flex items-center">Add Block:</span>
-                    <div class="flex flex-wrap gap-2">
-                        <button id="add-text-btn" class="add-block-button">
-                            <i data-lucide="type" class="w-4 h-4"></i>
-                            <span>Text</span>
-                        </button>
-                        <button id="add-heading-btn" class="add-block-button">
-                            <i data-lucide="heading" class="w-4 h-4"></i>
-                            <span>Heading</span>
-                        </button>
-                        <button id="add-todo-btn" class="add-block-button">
-                            <i data-lucide="check-square" class="w-4 h-4"></i>
-                            <span>To-Do</span>
-                        </button>
-                        <button id="more-blocks-btn" class="add-block-button">
-                            <i data-lucide="plus" class="w-4 h-4"></i>
-                            <span>More</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Sample Database View -->
-            <div class="database-view fade-in" id="sample-database" style="display: none;">
-                <div class="database-header">
-                    <h3 class="database-title">Tasks</h3>
-                    <div class="database-controls flex items-center">
-                        <div class="database-view-selector">
-                            <div class="view-option active">Table</div>
-                            <div class="view-option">Board</div>
-                            <div class="view-option">List</div>
-                            <div class="view-option">Calendar</div>
-                        </div>
-                        <button class="p-2 rounded-md hover:bg-surface-200 text-surface-700 transition-colors">
-                            <i data-lucide="plus" class="w-4 h-4"></i>
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="p-4">
-                    <p class="text-surface-500 text-sm italic">Sample database view - Click "New Row" to add data</p>
-                    
-                    <div class="overflow-x-auto mt-3 rounded-lg border border-surface-200">
-                        <table class="w-full mt-3">
-                            <thead>
-                                <tr class="text-left">
-                                    <th>Name</th>
-                                    <th>Status</th>
-                                    <th>Assigned To</th>
-                                    <th>Due Date</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>Setup foundry project</td>
-                                    <td>
-                                        <span class="status-badge green">Done</span>
-                                    </td>
-                                    <td>John Doe</td>
-                                    <td>Yesterday</td>
-                                </tr>
-                                <tr>
-                                    <td>Design block editor UI</td>
-                                    <td>
-                                        <span class="status-badge blue">In Progress</span>
-                                    </td>
-                                    <td>Jane Smith</td>
-                                    <td>Today</td>
-                                </tr>
-                                <tr>
-                                    <td>Implement database features</td>
-                                    <td>
-                                        <span class="status-badge yellow">To Do</span>
-                                    </td>
-                                    <td>Alex Johnson</td>
-                                    <td>Next week</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    
-                    <button id="add-row-btn" class="mt-4 px-4 py-2 text-sm text-surface-700 border border-surface-300 rounded-lg hover:bg-surface-100 flex items-center transition-colors">
-                        <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
-                        <span>New Row</span>
-                    </button>
-                </div>
-            </div>
+        <div>
+          <button id="save-document" class="toolbar-button primary">
+            <i data-lucide="save" class="w-4 h-4"></i>
+            <span>Save</span>
+          </button>
         </div>
+      </div>
+
+      <!-- Document Content Area -->
+      <div class="foundry-container">
+        <input
+          type="text"
+          id="document-title"
+          placeholder="Untitled"
+          class="document-title"
+        />
+
+        <div class="content-area mb-6">
+          <div id="editor" class="space-y-4 min-h-[300px]">
+            <!-- Editor blocks will be inserted here -->
+          </div>
+
+          <div class="add-block-menu">
+            <span
+              class="text-sm font-medium text-surface-600 mr-4 flex items-center"
+              >Add Block:</span
+            >
+            <div class="flex flex-wrap gap-2">
+              <button id="add-text-btn" class="add-block-button">
+                <i data-lucide="type" class="w-4 h-4"></i>
+                <span>Text</span>
+              </button>
+              <button id="add-heading-btn" class="add-block-button">
+                <i data-lucide="heading" class="w-4 h-4"></i>
+                <span>Heading</span>
+              </button>
+              <button id="add-todo-btn" class="add-block-button">
+                <i data-lucide="check-square" class="w-4 h-4"></i>
+                <span>To-Do</span>
+              </button>
+              <button id="more-blocks-btn" class="add-block-button">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                <span>More</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sample Database View -->
+        <div
+          class="database-view fade-in"
+          id="sample-database"
+          style="display: none"
+        >
+          <div class="database-header">
+            <h3 class="database-title">Tasks</h3>
+            <div class="database-controls flex items-center">
+              <div class="database-view-selector">
+                <div class="view-option active">Table</div>
+                <div class="view-option">Board</div>
+                <div class="view-option">List</div>
+                <div class="view-option">Calendar</div>
+              </div>
+              <button
+                class="p-2 rounded-md hover:bg-surface-200 text-surface-700 transition-colors"
+              >
+                <i data-lucide="plus" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="p-4">
+            <p class="text-surface-500 text-sm italic">
+              Sample database view - Click "New Row" to add data
+            </p>
+
+            <div
+              class="overflow-x-auto mt-3 rounded-lg border border-surface-200"
+            >
+              <table class="w-full mt-3">
+                <thead>
+                  <tr class="text-left">
+                    <th>Name</th>
+                    <th>Status</th>
+                    <th>Assigned To</th>
+                    <th>Due Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Setup foundry project</td>
+                    <td>
+                      <span class="status-badge green">Done</span>
+                    </td>
+                    <td>John Doe</td>
+                    <td>Yesterday</td>
+                  </tr>
+                  <tr>
+                    <td>Design block editor UI</td>
+                    <td>
+                      <span class="status-badge blue">In Progress</span>
+                    </td>
+                    <td>Jane Smith</td>
+                    <td>Today</td>
+                  </tr>
+                  <tr>
+                    <td>Implement database features</td>
+                    <td>
+                      <span class="status-badge yellow">To Do</span>
+                    </td>
+                    <td>Alex Johnson</td>
+                    <td>Next week</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <button
+              id="add-row-btn"
+              class="mt-4 px-4 py-2 text-sm text-surface-700 border border-surface-300 rounded-lg hover:bg-surface-100 flex items-center transition-colors"
+            >
+              <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
+              <span>New Row</span>
+            </button>
+          </div>
+        </div>
+      </div>
     </main>
-    
+
     <!-- Block Menu (Hidden by default) -->
-    <div id="block-menu" class="fixed inset-0 bg-surface-900 bg-opacity-60 flex items-center justify-center hidden">
-        <div class="bg-white rounded-xl shadow-xl p-6 max-w-md w-full scale-in">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-display font-semibold text-surface-900">Add a Block</h3>
-                <button id="hide-block-menu-btn" class="p-2 rounded-lg hover:bg-surface-100 text-surface-500 hover:text-surface-700 transition-colors">
-                    <i data-lucide="x"></i>
-                </button>
-            </div>
-            
-            <div class="grid grid-cols-2 gap-3">
-                <button id="add-text-block-btn" class="p-4 border border-surface-200 rounded-lg hover:bg-primary-50 hover:border-primary-300 text-left transition-all duration-200 hover:shadow-sm">
-                    <div class="font-medium">Text</div>
-                    <div class="text-sm text-surface-500">Simple paragraph text</div>
-                </button>
-                <button id="add-heading-block-btn" class="p-4 border border-surface-200 rounded-lg hover:bg-primary-50 hover:border-primary-300 text-left transition-all duration-200 hover:shadow-sm">
-                    <div class="font-medium">Heading</div>
-                    <div class="text-sm text-surface-500">Section title</div>
-                </button>
-                <button id="add-todo-block-btn" class="p-4 border border-surface-200 rounded-lg hover:bg-primary-50 hover:border-primary-300 text-left transition-all duration-200 hover:shadow-sm">
-                    <div class="font-medium">To-Do</div>
-                    <div class="text-sm text-surface-500">Checklist item</div>
-                </button>
-                <button id="add-list-block-btn" class="p-4 border border-surface-200 rounded-lg hover:bg-primary-50 hover:border-primary-300 text-left transition-all duration-200 hover:shadow-sm">
-                    <div class="font-medium">Bullet List</div>
-                    <div class="text-sm text-surface-500">Simple bulleted list</div>
-                </button>
-                <button id="add-quote-block-btn" class="p-4 border border-surface-200 rounded-lg hover:bg-primary-50 hover:border-primary-300 text-left transition-all duration-200 hover:shadow-sm">
-                    <div class="font-medium">Quote</div>
-                    <div class="text-sm text-surface-500">Blockquote for citations</div>
-                </button>
-                <button id="add-code-block-btn" class="p-4 border border-surface-200 rounded-lg hover:bg-primary-50 hover:border-primary-300 text-left transition-all duration-200 hover:shadow-sm">
-                    <div class="font-medium">Code</div>
-                    <div class="text-sm text-surface-500">Code snippet with highlighting</div>
-                </button>
-                <button id="add-database-block-btn" class="p-4 border border-surface-200 rounded-lg hover:bg-primary-50 hover:border-primary-300 text-left col-span-2 transition-all duration-200 hover:shadow-sm">
-                    <div class="font-medium">Database</div>
-                    <div class="text-sm text-surface-500">Add a new database or link to existing one</div>
-                </button>
-            </div>
+    <div
+      id="block-menu"
+      class="fixed inset-0 bg-surface-900 bg-opacity-60 flex items-center justify-center hidden"
+    >
+      <div class="bg-white rounded-xl shadow-xl p-6 max-w-md w-full scale-in">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-display font-semibold text-surface-900">
+            Add a Block
+          </h3>
+          <button
+            id="hide-block-menu-btn"
+            class="p-2 rounded-lg hover:bg-surface-100 text-surface-500 hover:text-surface-700 transition-colors"
+          >
+            <i data-lucide="x"></i>
+          </button>
         </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <button
+            id="add-text-block-btn"
+            class="p-4 border border-surface-200 rounded-lg hover:bg-primary-50 hover:border-primary-300 text-left transition-all duration-200 hover:shadow-sm"
+          >
+            <div class="font-medium">Text</div>
+            <div class="text-sm text-surface-500">Simple paragraph text</div>
+          </button>
+          <button
+            id="add-heading-block-btn"
+            class="p-4 border border-surface-200 rounded-lg hover:bg-primary-50 hover:border-primary-300 text-left transition-all duration-200 hover:shadow-sm"
+          >
+            <div class="font-medium">Heading</div>
+            <div class="text-sm text-surface-500">Section title</div>
+          </button>
+          <button
+            id="add-todo-block-btn"
+            class="p-4 border border-surface-200 rounded-lg hover:bg-primary-50 hover:border-primary-300 text-left transition-all duration-200 hover:shadow-sm"
+          >
+            <div class="font-medium">To-Do</div>
+            <div class="text-sm text-surface-500">Checklist item</div>
+          </button>
+          <button
+            id="add-list-block-btn"
+            class="p-4 border border-surface-200 rounded-lg hover:bg-primary-50 hover:border-primary-300 text-left transition-all duration-200 hover:shadow-sm"
+          >
+            <div class="font-medium">Bullet List</div>
+            <div class="text-sm text-surface-500">Simple bulleted list</div>
+          </button>
+          <button
+            id="add-quote-block-btn"
+            class="p-4 border border-surface-200 rounded-lg hover:bg-primary-50 hover:border-primary-300 text-left transition-all duration-200 hover:shadow-sm"
+          >
+            <div class="font-medium">Quote</div>
+            <div class="text-sm text-surface-500">Blockquote for citations</div>
+          </button>
+          <button
+            id="add-code-block-btn"
+            class="p-4 border border-surface-200 rounded-lg hover:bg-primary-50 hover:border-primary-300 text-left transition-all duration-200 hover:shadow-sm"
+          >
+            <div class="font-medium">Code</div>
+            <div class="text-sm text-surface-500">
+              Code snippet with highlighting
+            </div>
+          </button>
+          <button
+            id="add-database-block-btn"
+            class="p-4 border border-surface-200 rounded-lg hover:bg-primary-50 hover:border-primary-300 text-left col-span-2 transition-all duration-200 hover:shadow-sm"
+          >
+            <div class="font-medium">Database</div>
+            <div class="text-sm text-surface-500">
+              Add a new database or link to existing one
+            </div>
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Load scripts -->
     <script type="module" src="js/index.js"></script>
     <script>
-        // Parse URL parameters and set up document accordingly
-        document.addEventListener('DOMContentLoaded', function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            
-            // Check for template parameter
-            if (urlParams.has('template')) {
-                console.log('Loading template:', urlParams.get('template'));
-                // This would be replaced with actual template loading logic
-            }
-            
-            // Import modules for UI interaction
-            import('./js/modules/blocks.js').then(blocksModule => {
-                const { addBlock, showBlockMenu, hideBlockMenu, addDatabaseBlock } = blocksModule;
-                
-                // Add block buttons
-                document.getElementById('add-text-btn')?.addEventListener('click', function() {
-                    addBlock('text');
-                });
-                
-                document.getElementById('add-heading-btn')?.addEventListener('click', function() {
-                    addBlock('heading');
-                });
-                
-                document.getElementById('add-todo-btn')?.addEventListener('click', function() {
-                    addBlock('todo');
-                });
-                
-                document.getElementById('more-blocks-btn')?.addEventListener('click', function() {
-                    showBlockMenu();
-                });
-                
-                // Block menu buttons
-                document.getElementById('hide-block-menu-btn')?.addEventListener('click', function() {
-                    hideBlockMenu();
-                });
-                
-                document.getElementById('add-text-block-btn')?.addEventListener('click', function() {
-                    addBlock('text');
-                    hideBlockMenu();
-                });
-                
-                document.getElementById('add-heading-block-btn')?.addEventListener('click', function() {
-                    addBlock('heading');
-                    hideBlockMenu();
-                });
-                
-                document.getElementById('add-todo-block-btn')?.addEventListener('click', function() {
-                    addBlock('todo');
-                    hideBlockMenu();
-                });
-                
-                document.getElementById('add-list-block-btn')?.addEventListener('click', function() {
-                    addBlock('list');
-                    hideBlockMenu();
-                });
-                
-                document.getElementById('add-quote-block-btn')?.addEventListener('click', function() {
-                    addBlock('quote');
-                    hideBlockMenu();
-                });
-                
-                document.getElementById('add-code-block-btn')?.addEventListener('click', function() {
-                    addBlock('code');
-                    hideBlockMenu();
-                });
-                
-                document.getElementById('add-database-block-btn')?.addEventListener('click', function() {
-                    addDatabaseBlock();
-                    hideBlockMenu();
-                });
+      // Parse URL parameters and set up document accordingly
+      document.addEventListener("DOMContentLoaded", function () {
+        const urlParams = new URLSearchParams(window.location.search);
+
+        // Check for template parameter
+        if (urlParams.has("template")) {
+          console.log("Loading template:", urlParams.get("template"));
+          // This would be replaced with actual template loading logic
+        }
+
+        // Import modules for UI interaction
+        import("./js/modules/blocks.js").then((blocksModule) => {
+          const { addBlock, showBlockMenu, hideBlockMenu, addDatabaseBlock } =
+            blocksModule;
+
+          // Add block buttons
+          document
+            .getElementById("add-text-btn")
+            ?.addEventListener("click", function () {
+              addBlock("text");
             });
-            
-            // Import modules for dialog handling
-            import('./js/modules/dialogs.js').then(dialogsModule => {
-                const { showShareDialog, showSettingsDialog } = dialogsModule;
-                
-                // Toolbar buttons
-                document.getElementById('share-button')?.addEventListener('click', function() {
-                    showShareDialog();
-                });
-                
-                document.getElementById('settings-button')?.addEventListener('click', function() {
-                    showSettingsDialog();
-                });
+
+          document
+            .getElementById("add-heading-btn")
+            ?.addEventListener("click", function () {
+              addBlock("heading");
             });
-            
-            // Database buttons
-            document.getElementById('add-row-btn')?.addEventListener('click', function() {
-                // In a real app, this would add a row to the database
-                alert('Adding a new row to the database');
+
+          document
+            .getElementById("add-todo-btn")
+            ?.addEventListener("click", function () {
+              addBlock("todo");
+            });
+
+          document
+            .getElementById("more-blocks-btn")
+            ?.addEventListener("click", function () {
+              showBlockMenu();
+            });
+
+          // Block menu buttons
+          document
+            .getElementById("hide-block-menu-btn")
+            ?.addEventListener("click", function () {
+              hideBlockMenu();
+            });
+
+          document
+            .getElementById("add-text-block-btn")
+            ?.addEventListener("click", function () {
+              addBlock("text");
+              hideBlockMenu();
+            });
+
+          document
+            .getElementById("add-heading-block-btn")
+            ?.addEventListener("click", function () {
+              addBlock("heading");
+              hideBlockMenu();
+            });
+
+          document
+            .getElementById("add-todo-block-btn")
+            ?.addEventListener("click", function () {
+              addBlock("todo");
+              hideBlockMenu();
+            });
+
+          document
+            .getElementById("add-list-block-btn")
+            ?.addEventListener("click", function () {
+              addBlock("list");
+              hideBlockMenu();
+            });
+
+          document
+            .getElementById("add-quote-block-btn")
+            ?.addEventListener("click", function () {
+              addBlock("quote");
+              hideBlockMenu();
+            });
+
+          document
+            .getElementById("add-code-block-btn")
+            ?.addEventListener("click", function () {
+              addBlock("code");
+              hideBlockMenu();
+            });
+
+          document
+            .getElementById("add-database-block-btn")
+            ?.addEventListener("click", function () {
+              addDatabaseBlock();
+              hideBlockMenu();
             });
         });
+
+        // Import modules for dialog handling
+        import("./js/modules/dialogs.js").then((dialogsModule) => {
+          const { showShareDialog, showSettingsDialog } = dialogsModule;
+
+          // Toolbar buttons
+          document
+            .getElementById("share-button")
+            ?.addEventListener("click", function () {
+              showShareDialog();
+            });
+
+          document
+            .getElementById("settings-button")
+            ?.addEventListener("click", function () {
+              showSettingsDialog();
+            });
+        });
+
+        // Database buttons
+        document
+          .getElementById("add-row-btn")
+          ?.addEventListener("click", function () {
+            // In a real app, this would add a row to the database
+            alert("Adding a new row to the database");
+          });
+      });
     </script>
-</body>
-</html> 
+  </body>
+</html>
