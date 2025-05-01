@@ -22,7 +22,7 @@ console.log('%c[INDEX] Script loading started', 'background: #0284c7; color: whi
 
 import { initializeApp, appState } from './core/app-core.js';
 import { setupEventListeners } from './core/event-listeners.js';
-import { toggleSidebar, debugSidebar } from './modules/ui.js';
+import { toggleSidebar, debugSidebar, setupSidebarToggleFixed } from './modules/ui.js';
 
 // Initialize app when document is ready
 function initialize() {
@@ -39,34 +39,20 @@ function initialize() {
         window.debugSidebar = debugSidebar;
         console.log('[INDEX] Debug sidebar function attached to window object');
         
+        // Set up the sidebar toggle buttons using the proper UI module functions
+        import('./modules/ui.js').then(uiModule => {
+            uiModule.setupSidebarToggle();
+            uiModule.setupSidebarToggleFixed();
+            console.log('[INDEX] Sidebar toggle buttons set up through UI module');
+        }).catch(error => {
+            console.error('[INDEX] Error setting up sidebar toggle:', error);
+        });
+        
         // Log important elements for debugging
         console.log('[INDEX] Key UI elements after initialization:');
         console.log('[INDEX] Sidebar Toggle:', document.getElementById('sidebar-toggle'));
         console.log('[INDEX] Sidebar Toggle Fixed:', document.getElementById('sidebar-toggle-fixed'));
         console.log('[INDEX] Sidebar Close:', document.getElementById('sidebar-close'));
-        
-        // Add direct click event handlers as a fallback
-        const sidebarToggle = document.getElementById('sidebar-toggle');
-        if (sidebarToggle) {
-            console.log('[INDEX] Adding direct click handler to sidebar-toggle');
-            sidebarToggle.onclick = function() {
-                console.log('[INDEX] sidebar-toggle clicked directly');
-                toggleSidebar();
-            };
-        } else {
-            console.warn('[INDEX] sidebar-toggle element not found');
-        }
-        
-        const sidebarToggleFixed = document.getElementById('sidebar-toggle-fixed');
-        if (sidebarToggleFixed) {
-            console.log('[INDEX] Adding direct click handler to sidebar-toggle-fixed');
-            sidebarToggleFixed.onclick = function() {
-                console.log('[INDEX] sidebar-toggle-fixed clicked directly');
-                toggleSidebar();
-            };
-        } else {
-            console.warn('[INDEX] sidebar-toggle-fixed element not found');
-        }
         
         console.log('[INDEX] Initialization complete');
     } catch (error) {
@@ -87,19 +73,44 @@ if (document.readyState === 'loading') {
 window.onload = function() {
     console.log('[INDEX] Window fully loaded - checking initialization');
     
-    // Check if sidebar toggle elements exist and have click handlers
-    const sidebarToggleFixed = document.getElementById('sidebar-toggle-fixed');
-    if (sidebarToggleFixed && !sidebarToggleFixed.onclick) {
-        console.log('[INDEX] Reattaching click handler to sidebar-toggle-fixed');
-        sidebarToggleFixed.onclick = function() {
-            console.log('[INDEX] sidebar-toggle-fixed clicked (from window.onload)');
-            toggleSidebar();
-        };
-    }
+    // Set up sidebar toggle buttons again to ensure they work
+    import('./modules/ui.js').then(uiModule => {
+        uiModule.setupSidebarToggle();
+        uiModule.setupSidebarToggleFixed();
+        console.log('[INDEX] Sidebar toggle buttons set up after window load');
+    }).catch(error => {
+        console.error('[INDEX] Error setting up sidebar toggle after window load:', error);
+    });
     
     // Run sidebar diagnostics after window load
     console.log('[INDEX] Running sidebar diagnostics after window load...');
     if (window.debugSidebar) {
         window.debugSidebar();
+    }
+    
+    // Create a special button to activate sidebar toggle for testing
+    console.log('[INDEX] Creating emergency sidebar toggle button for testing...');
+    const emergencyBtn = document.createElement('button');
+    emergencyBtn.textContent = "Emergency Toggle Sidebar";
+    emergencyBtn.style.position = "fixed";
+    emergencyBtn.style.bottom = "10px";
+    emergencyBtn.style.right = "10px";
+    emergencyBtn.style.zIndex = "9999";
+    emergencyBtn.style.padding = "10px";
+    emergencyBtn.style.backgroundColor = "#0284c7";
+    emergencyBtn.style.color = "white";
+    emergencyBtn.style.borderRadius = "4px";
+    emergencyBtn.style.border = "none";
+    emergencyBtn.style.cursor = "pointer";
+    
+    emergencyBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        console.log('[INDEX] Emergency sidebar toggle clicked');
+        toggleSidebar();
+    });
+    
+    // Only add the emergency button in debug mode
+    if (document.querySelector('.sidebar')) {
+        document.body.appendChild(emergencyBtn);
     }
 }; 

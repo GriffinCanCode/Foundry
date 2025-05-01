@@ -56,44 +56,57 @@ function setupUIComponents() {
 }
 
 // Setup sidebar toggle functionality
-function setupSidebarToggle() {
+export function setupSidebarToggle() {
     const sidebar = document.querySelector('.sidebar');
     const main = document.getElementById('main-content');
     const sidebarToggle = document.getElementById('sidebar-toggle');
     const sidebarToggleFixed = document.getElementById('sidebar-toggle-fixed');
     const sidebarClose = document.getElementById('sidebar-close');
 
-    // Store direct function references to avoid closure issues
-    const toggleSidebarFn = function() {
-        console.log('Toggle sidebar called from direct function');
+    // Create a single reusable function to handle sidebar toggle
+    const toggleSidebarFn = function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Toggle sidebar called from click event');
         toggleSidebar();
     };
     
-    const closeSidebarFn = function() {
-        console.log('Close sidebar called from direct function');
+    const closeSidebarFn = function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('Close sidebar called from click event');
         closeSidebar();
     };
 
     // Add event listeners for sidebar toggles
     if (sidebarToggle) {
-        // Remove any existing listeners first to prevent duplicates
+        // Remove any existing listeners to prevent duplicates
         sidebarToggle.removeEventListener('click', toggleSidebarFn);
+        // Add the click listener
         sidebarToggle.addEventListener('click', toggleSidebarFn);
+        // Clear any direct onclick property to avoid conflicts
+        sidebarToggle.onclick = null;
+        console.log('Added click listener to sidebar-toggle button');
     }
     
     if (sidebarToggleFixed) {
-        // Remove any existing listeners first to prevent duplicates
+        // Remove any existing listeners to prevent duplicates
         sidebarToggleFixed.removeEventListener('click', toggleSidebarFn);
+        // Add the click listener
         sidebarToggleFixed.addEventListener('click', toggleSidebarFn);
+        // Clear any direct onclick property to avoid conflicts
+        sidebarToggleFixed.onclick = null;
+        console.log('Added click listener to sidebar-toggle-fixed button');
     }
     
     if (sidebarClose) {
         sidebarClose.removeEventListener('click', closeSidebarFn);
         sidebarClose.addEventListener('click', closeSidebarFn);
+        console.log('Added click listener to sidebar-close button');
     }
     
     // Log sidebar elements to help debug
-    console.log('Sidebar elements:', { 
+    console.log('Sidebar elements set up:', { 
         sidebar: sidebar, 
         sidebarToggle: sidebarToggle, 
         sidebarToggleFixed: sidebarToggleFixed,
@@ -129,8 +142,17 @@ export function toggleSidebar() {
     
     if (sidebar && main) {
         console.log('[UI] Before toggle - sidebar has open class:', sidebar.classList.contains('open'));
-        sidebar.classList.toggle('open');
-        main.classList.toggle('sidebar-closed');
+        
+        // Toggle sidebar class
+        if (sidebar.classList.contains('open')) {
+            sidebar.classList.remove('open');
+            main.classList.add('sidebar-closed');
+            console.log('[UI] Sidebar closed');
+        } else {
+            sidebar.classList.add('open');
+            main.classList.remove('sidebar-closed');
+            console.log('[UI] Sidebar opened');
+        }
         
         console.log('[UI] After toggle - sidebar has open class:', sidebar.classList.contains('open'));
         
@@ -389,4 +411,37 @@ export function debugSidebar() {
     console.log('[DEBUG] Sidebar diagnostics complete');
     
     return "Sidebar debugging complete. Check your console for detailed information.";
+}
+
+// Function to set up the sidebar toggle fixed button directly
+export function setupSidebarToggleFixed() {
+    console.log('%c[UI] Setting up sidebar toggle fixed button', 'background: #0284c7; color: white; padding: 2px 4px; border-radius: 4px;');
+    
+    const sidebarToggleFixed = document.getElementById('sidebar-toggle-fixed');
+    if (sidebarToggleFixed) {
+        // Clear any existing onclick handler
+        sidebarToggleFixed.onclick = null;
+        
+        // Remove any existing listeners first to prevent duplicates
+        const toggleFunction = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('%c[UI] Sidebar toggle fixed clicked with event listener', 'background: green; color: white; padding: 2px 4px; border-radius: 4px;');
+            toggleSidebar();
+        };
+        
+        // Remove any existing click listeners (to avoid duplicates)
+        try {
+            sidebarToggleFixed.removeEventListener('click', toggleFunction);
+        } catch (e) {
+            // Ignore errors when trying to remove non-existent listeners
+        }
+        
+        // Add a new event listener
+        sidebarToggleFixed.addEventListener('click', toggleFunction);
+        
+        console.log('[UI] Sidebar toggle fixed button set up with click event listener');
+    } else {
+        console.warn('[UI] Could not find sidebar-toggle-fixed element');
+    }
 } 

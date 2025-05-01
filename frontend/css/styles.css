@@ -111,16 +111,17 @@ body.sidebar-open #main-content {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 30;
+    z-index: 100; /* Increased z-index to ensure button is above other elements */
     cursor: pointer;
     transform: translateY(-50%);
     transition: left 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
     background-color: white;
     border-radius: 0 var(--border-radius-md) var(--border-radius-md) 0;
-    border: 1px solid var(--surface-200);
+    border: 2px solid var(--primary-300); /* More visible border */
     border-left: none;
     box-shadow: var(--shadow-md);
     color: var(--surface-600);
+    pointer-events: auto !important; /* Force pointer events */
 }
 
 .sidebar-toggle-fixed:hover {
@@ -132,6 +133,10 @@ body.sidebar-open #main-content {
 .sidebar-toggle-fixed:active {
     background-color: var(--primary-100);
     transform: translateY(-50%) scale(0.98);
+}
+
+.sidebar-toggle-fixed i {
+    pointer-events: none; /* Prevent the icon from catching clicks */
 }
 
 .sidebar.open ~ #main-content .sidebar-toggle-fixed,
