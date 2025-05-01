@@ -5,14 +5,29 @@
 import { appState } from '../core/app-core.js';
 import { showNotification } from '../utils/notifications.js';
 import { closeModal } from '../utils/modals.js';
+import { 
+    initializeSettingsStorage, 
+    loadSettings as loadSettingsFromStorage, 
+    saveSettings as saveSettingsToStorage,
+    updateSettings,
+    getSetting,
+    setSetting,
+    resetSettings
+} from '../storage/settings-storage.js';
+import { StorageStrategy, initializeStorage } from '../storage/storage-manager.js';
+
+// Initialize settings storage when module is imported
+initializeSettingsStorage().catch(error => {
+    console.error('Failed to initialize settings storage:', error);
+});
 
 // Load user settings from backend
 export async function loadSettings() {
     try {
-        const result = await window.foundryAPI.loadSettings();
+        const settings = await loadSettingsFromStorage();
         
-        if (result.success) {
-            appState.settings = { ...appState.settings, ...result.settings };
+        if (settings) {
+            appState.settings = { ...appState.settings, ...settings };
             
             // Apply dark mode if enabled
             if (appState.settings.darkMode) {
@@ -24,9 +39,9 @@ export async function loadSettings() {
                 setupAutoSave();
             }
             
-            return result.settings;
+            return settings;
         } else {
-            console.error('Error loading settings:', result.error);
+            console.error('Error loading settings');
             
             // Default to system preference for dark mode
             if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
@@ -38,6 +53,13 @@ export async function loadSettings() {
         }
     } catch (err) {
         console.error('Error loading settings:', err);
+        
+        // Default to system preference for dark mode
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            appState.settings.darkMode = true;
+            document.documentElement.classList.add('dark-mode');
+        }
+        
         return appState.settings;
     }
 }
@@ -45,14 +67,14 @@ export async function loadSettings() {
 // Save user settings to backend
 export async function saveSettings(settings = appState.settings) {
     try {
-        const result = await window.foundryAPI.saveSettings(settings);
+        const result = await saveSettingsToStorage(settings);
         
         if (result.success) {
             // Update app state with the returned settings
-            appState.settings = { ...appState.settings, ...result.settings };
+            appState.settings = { ...appState.settings, ...settings };
             return true;
         } else {
-            console.error('Error saving settings:', result.error);
+            console.error('Error saving settings');
             return false;
         }
     } catch (err) {
@@ -91,6 +113,28 @@ export function setupAutoSave() {
     }
 }
 
+// Reinitialize storage system with new settings
+export async function reinitializeStorage(settings) {
+    try {
+        // Extract storage-related settings
+        const storageConfig = {
+            strategy: settings.syncStrategy || StorageStrategy.HYBRID,
+            autoSync: settings.autoSync !== false,
+            enableCompression: settings.enableCompression || false,
+            enableEncryption: settings.enableEncryption || false
+        };
+        
+        // Reinitialize storage with new config
+        await initializeStorage(storageConfig);
+        
+        console.log('Storage system reinitialized with new settings');
+        return true;
+    } catch (error) {
+        console.error('Failed to reinitialize storage system:', error);
+        return false;
+    }
+}
+
 // Settings hook - provides access to settings and methods to update them
 export function useSettings() {
     return {
@@ -99,13 +143,8 @@ export function useSettings() {
         
         // Update a single setting
         updateSetting: async (key, value) => {
-            const newSettings = { 
-                ...appState.settings,
-                [key]: value
-            };
-            
             // Update app state immediately for responsive UI
-            appState.settings = newSettings;
+            appState.settings[key] = value;
             
             // Apply theme if darkMode was updated
             if (key === 'darkMode') {
@@ -117,19 +156,24 @@ export function useSettings() {
                 setupAutoSave();
             }
             
-            // Save to backend
-            return await saveSettings(newSettings);
+            // Reinitialize storage if storage settings changed
+            if (key === 'syncStrategy' || key === 'autoSync' || 
+                key === 'enableCompression' || key === 'enableEncryption') {
+                await reinitializeStorage(appState.settings);
+            }
+            
+            // Save to storage
+            const result = await setSetting(key, value);
+            return !!result;
         },
         
         // Update multiple settings at once
         updateSettings: async (newSettings) => {
-            const updatedSettings = {
+            // Update app state immediately for responsive UI
+            appState.settings = {
                 ...appState.settings,
                 ...newSettings
             };
-            
-            // Update app state immediately for responsive UI
-            appState.settings = updatedSettings;
             
             // Apply theme if darkMode was updated
             if ('darkMode' in newSettings) {
@@ -141,17 +185,21 @@ export function useSettings() {
                 setupAutoSave();
             }
             
-            // Save to backend
-            return await saveSettings(updatedSettings);
+            // Reinitialize storage if storage settings changed
+            if ('syncStrategy' in newSettings || 'autoSync' in newSettings || 
+                'enableCompression' in newSettings || 'enableEncryption' in newSettings) {
+                await reinitializeStorage(appState.settings);
+            }
+            
+            // Save to storage
+            const result = await updateSettings(newSettings);
+            return !!result;
         },
         
         // Reset settings to defaults
         resetSettings: async () => {
-            const defaultSettings = {
-                darkMode: false,
-                autoSave: true,
-                autoSaveInterval: 30
-            };
+            // Reset settings in storage
+            const defaultSettings = await resetSettings();
             
             // Update app state
             appState.settings = defaultSettings;
@@ -162,8 +210,10 @@ export function useSettings() {
             // Setup autosave
             setupAutoSave();
             
-            // Save to backend
-            return await saveSettings(defaultSettings);
+            // Reinitialize storage
+            await reinitializeStorage(defaultSettings);
+            
+            return true;
         }
     };
 }
@@ -244,7 +294,35 @@ export function showSettingsDialog() {
                 </div>
                 
                 <div>
-                    <h4 class="text-base font-medium text-surface-800 mb-3 dark-mode:text-surface-200">Data Storage</h4>
+                    <h4 class="text-base font-medium text-surface-800 mb-3 dark-mode:text-surface-200">Storage</h4>
+                    <div class="space-y-3 bg-surface-50 p-3 rounded-lg dark-mode:bg-surface-700">
+                        <div>
+                            <label class="block text-sm text-surface-700 mb-2 dark-mode:text-surface-300">Storage Strategy</label>
+                            <select id="storage-strategy" 
+                                   class="w-full px-4 py-2.5 border border-surface-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 dark-mode:bg-surface-600 dark-mode:border-surface-500 dark-mode:text-white">
+                                <option value="hybrid">Hybrid (Local + Backend)</option>
+                                <option value="local">Local Only</option>
+                                <option value="backend">Backend Only</option>
+                            </select>
+                            <p class="mt-1 text-xs text-surface-500 dark-mode:text-surface-400">
+                                Hybrid: Works offline, syncs when online<br>
+                                Local: Stored in browser only<br>
+                                Backend: Always requires connection
+                            </p>
+                        </div>
+                        
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-surface-700 dark-mode:text-surface-300">Auto-sync</span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="autosync-toggle" class="sr-only peer" checked>
+                                <div class="w-11 h-6 bg-surface-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 dark-mode:peer-focus:ring-primary-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-surface-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <h4 class="text-base font-medium text-surface-800 mb-3 dark-mode:text-surface-200">Data Management</h4>
                     <div class="space-y-2">
                         <button id="export-all-data" class="w-full px-4 py-3 text-sm bg-surface-50 text-surface-700 border border-surface-200 rounded-lg hover:bg-surface-100 transition-colors text-left flex items-center dark-mode:bg-surface-700 dark-mode:border-surface-600 dark-mode:text-surface-300 dark-mode:hover:bg-surface-600">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-download mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
@@ -292,6 +370,17 @@ export function showSettingsDialog() {
     document.getElementById('autosave-toggle').checked = appState.settings.autoSave;
     document.getElementById('autosave-interval').value = appState.settings.autoSaveInterval;
     
+    // Set initial state for storage options
+    const storageStrategySelect = document.getElementById('storage-strategy');
+    if (storageStrategySelect) {
+        storageStrategySelect.value = appState.settings.syncStrategy || StorageStrategy.HYBRID;
+    }
+    
+    const autoSyncToggle = document.getElementById('autosync-toggle');
+    if (autoSyncToggle) {
+        autoSyncToggle.checked = appState.settings.autoSync !== false;
+    }
+    
     // Define event handler functions with proper binding to use as references
     const handleCloseModal = function(e) {
         if (e.target.id === 'close-settings-modal' || e.target.closest('#close-settings-modal')) {
@@ -317,8 +406,10 @@ export function showSettingsDialog() {
             const darkModeToggle = document.getElementById('dark-mode-toggle');
             const autoSaveToggle = document.getElementById('autosave-toggle');
             const autoSaveInterval = document.getElementById('autosave-interval');
+            const storageStrategy = document.getElementById('storage-strategy');
+            const autoSyncToggle = document.getElementById('autosync-toggle');
             
-            if (!darkModeToggle || !autoSaveToggle || !autoSaveInterval) {
+            if (!darkModeToggle || !autoSaveToggle || !autoSaveInterval || !storageStrategy || !autoSyncToggle) {
                 console.error('Could not find required form elements');
                 return;
             }
@@ -326,6 +417,8 @@ export function showSettingsDialog() {
             const darkMode = darkModeToggle.checked;
             const autoSave = autoSaveToggle.checked;
             const interval = parseInt(autoSaveInterval.value, 10);
+            const syncStrategy = storageStrategy.value;
+            const autoSync = autoSyncToggle.checked;
             
             // Get the settings hook
             const { updateSettings } = useSettings();
@@ -334,7 +427,9 @@ export function showSettingsDialog() {
             const success = await updateSettings({
                 darkMode,
                 autoSave,
-                autoSaveInterval: interval
+                autoSaveInterval: interval,
+                syncStrategy,
+                autoSync
             });
             
             if (success) {
@@ -384,4 +479,4 @@ export function showSettingsDialog() {
     
     // For debugging
     console.log('Settings modal initialized with event handlers');
-} 
+}
